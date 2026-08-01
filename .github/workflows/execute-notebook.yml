@@ -29,19 +29,27 @@ jobs:
           pip install nbclient nbformat ipykernel numpy
           python -m ipykernel install --user --name python3
 
-      # 不寫死檔名/路徑,自動找出 repo 裡的 .ipynb 並執行(邏輯獨立成
-      # scripts/execute_notebook.py,避免在 YAML 裡塞 heredoc 造成縮排問題)
-      - name: Execute notebook (fails the build if any cell errors)
+      # 執行 repo 裡所有的 .ipynb(不再只抓第一個找到的檔案)。
+      # Case-01 這類 notebook 靠自己內建的 assert 當作 pass/fail 判斷;
+      # 邏輯獨立成 scripts/execute_notebook.py,避免在 YAML 裡塞 heredoc。
+      - name: Execute all notebooks (fails the build if any cell errors)
         run: python scripts/execute_notebook.py
 
-      # 同樣動態找 check_key_values.py 的位置,不寫死路徑
-      - name: Regression-check key numbers
+      # 數值迴歸檢查只鎖定桃園案例那份 notebook(檔名含 seismic_design)——
+      # check_key_values.py 裡對照的 EXPECTED 數字是那份總結表專屬的,
+      # 不適用於 Case-01 這類其他 notebook,所以用檔名 pattern 明確指定,
+      # 不要再用「find 第一個」這種會抓錯檔案的寫法。
+      - name: Regression-check key numbers (Taoyuan case)
         run: |
           set -e
           CHECK=$(find . -name "check_key_values.py" -not -path "./.git/*" | head -n 1)
-          NB=$(find . -name "*.ipynb" -not -path "./.git/*" | head -n 1)
+          NB=$(find . -name "seismic_design*.ipynb" -not -path "./.git/*" | head -n 1)
           if [ -z "$CHECK" ]; then
             echo "check_key_values.py not found, skipping regression check"
+            exit 0
+          fi
+          if [ -z "$NB" ]; then
+            echo "seismic_design*.ipynb not found, skipping regression check"
             exit 0
           fi
           echo "Running $CHECK against $NB"
