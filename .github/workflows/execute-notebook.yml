@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nbclient nbformat ipykernel numpy openseespy
+          pip install nbclient nbformat ipykernel numpy openseespy matplotlib
           python -m ipykernel install --user --name python3
 
       # 執行 repo 裡所有的 .ipynb(不再只抓第一個找到的檔案)。
@@ -45,7 +45,7 @@ jobs:
 
       # 數值迴歸檢查只鎖定桃園案例那份 notebook(檔名含 seismic_design)——
       # check_key_values.py 裡對照的 EXPECTED 數字是那份總結表專屬的,
-      # 不適用於 Case-01 這類其他 notebook,所以用檔名 pattern 明確指定,
+      # 不適用於 Case-01/02 這類其他 notebook,所以用檔名 pattern 明確指定,
       # 不要再用「find 第一個」這種會抓錯檔案的寫法。
       - name: Regression-check key numbers (Taoyuan case)
         run: |
