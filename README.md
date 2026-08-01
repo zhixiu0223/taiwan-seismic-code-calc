@@ -11,4 +11,3 @@
 ## 📁 專案內容
 
 * [2層樓8柱RC構架耐震設計](notebooks/seismic_design_2story_8col.ipynb)
-EOF
