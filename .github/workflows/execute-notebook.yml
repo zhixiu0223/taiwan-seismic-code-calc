@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nbclient nbformat ipykernel numpy
+          pip install nbclient nbformat ipykernel numpy openseespy
           python -m ipykernel install --user --name python3
 
       # 執行 repo 裡所有的 .ipynb(不再只抓第一個找到的檔案)。
