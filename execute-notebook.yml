@@ -1,0 +1,43 @@
+name: Execute notebook & verify results
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nbformat nbclient jupyter_client ipykernel
+
+      - name: Register kernel
+        run: python -m ipykernel install --user --name python3
+
+      - name: Execute notebook (fails the build if any cell errors)
+        run: |
+          python - <<'EOF'
+          from nbclient import NotebookClient
+          import nbformat
+
+          path = "seismic_design_2story_8col.ipynb"
+          nb = nbformat.read(path, as_version=4)
+          client = NotebookClient(nb, timeout=180, kernel_name="python3")
+          client.execute()
+          nbformat.write(nb, path)
+          print("Notebook executed with no errors.")
+          EOF
+
+      - name: Regression-check key numbers
+        run: python tests/check_key_values.py
