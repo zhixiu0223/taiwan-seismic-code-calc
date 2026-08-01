@@ -6,6 +6,7 @@ on:
       - '**.ipynb'
       - '**/check_key_values.py'
       - '.github/workflows/execute-notebook.yml'
+      - 'scripts/execute_notebook.py'
   pull_request:
     paths:
       - '**.ipynb'
@@ -28,23 +29,10 @@ jobs:
           pip install nbclient nbformat ipykernel numpy
           python -m ipykernel install --user --name python3
 
-      # 不寫死檔名/路徑,自動找出 repo 裡所有 .ipynb,逐一執行
+      # 不寫死檔名/路徑,自動找出 repo 裡的 .ipynb 並執行(邏輯獨立成
+      # scripts/execute_notebook.py,避免在 YAML 裡塞 heredoc 造成縮排問題)
       - name: Execute notebook (fails the build if any cell errors)
-        run: |
-          set -e
-          NB=$(find . -name "*.ipynb" -not -path "./.git/*" | head -n 1)
-          echo "Found notebook: $NB"
-          python - <<EOF
-          import nbformat
-          from nbclient import NotebookClient
-
-          path = "$NB"
-          nb = nbformat.read(path, as_version=4)
-          client = NotebookClient(nb, timeout=300, kernel_name="python3")
-          client.execute()
-          nbformat.write(nb, path)
-          print("Executed OK:", path)
-          EOF
+        run: python scripts/execute_notebook.py
 
       # 同樣動態找 check_key_values.py 的位置,不寫死路徑
       - name: Regression-check key numbers
