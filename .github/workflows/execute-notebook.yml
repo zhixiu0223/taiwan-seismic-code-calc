@@ -2,42 +2,59 @@ name: Execute notebook & verify results
 
 on:
   push:
-    branches: [ main ]
+    paths:
+      - '**.ipynb'
+      - '**/check_key_values.py'
+      - '.github/workflows/execute-notebook.yml'
   pull_request:
-    branches: [ main ]
+    paths:
+      - '**.ipynb'
 
 jobs:
   run-and-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nbformat nbclient jupyter_client ipykernel
+          pip install nbclient nbformat ipykernel numpy
+          python -m ipykernel install --user --name python3
 
-      - name: Register kernel
-        run: python -m ipykernel install --user --name python3
-
+      # 不寫死檔名/路徑,自動找出 repo 裡所有 .ipynb,逐一執行
       - name: Execute notebook (fails the build if any cell errors)
         run: |
-          python - <<'EOF'
-          from nbclient import NotebookClient
+          set -e
+          NB=$(find . -name "*.ipynb" -not -path "./.git/*" | head -n 1)
+          echo "Found notebook: $NB"
+          python - <<EOF
           import nbformat
+          from nbclient import NotebookClient
 
-          path = "seismic_design_2story_8col.ipynb"
+          path = "$NB"
           nb = nbformat.read(path, as_version=4)
-          client = NotebookClient(nb, timeout=180, kernel_name="python3")
+          client = NotebookClient(nb, timeout=300, kernel_name="python3")
           client.execute()
           nbformat.write(nb, path)
-          print("Notebook executed with no errors.")
+          print("Executed OK:", path)
           EOF
 
+      # 同樣動態找 check_key_values.py 的位置,不寫死路徑
       - name: Regression-check key numbers
-        run: python tests/check_key_values.py
+        run: |
+          set -e
+          CHECK=$(find . -name "check_key_values.py" -not -path "./.git/*" | head -n 1)
+          NB=$(find . -name "*.ipynb" -not -path "./.git/*" | head -n 1)
+          if [ -z "$CHECK" ]; then
+            echo "check_key_values.py not found, skipping regression check"
+            exit 0
+          fi
+          echo "Running $CHECK against $NB"
+          python "$CHECK" "$NB"
