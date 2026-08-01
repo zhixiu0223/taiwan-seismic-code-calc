@@ -6,12 +6,16 @@
 這支腳本會在數字跑掉時讓 CI 失敗,而不是悄悄地讓錯誤結果留在 repo 裡。
 
 容許誤差用相對誤差 1e-3(0.1%),浮點運算與四捨五入不會誤觸。
+
+用法:
+    python check_key_values.py [notebook路徑]
+    若未指定路徑,預設抓 "seismic_design_2story_8col.ipynb"(相容舊用法)。
 """
 import re
 import sys
 import nbformat
 
-NOTEBOOK_PATH = "seismic_design_2story_8col.ipynb"
+DEFAULT_NOTEBOOK_PATH = "seismic_design_2story_8col.ipynb"
 
 # 已核對過的手算結果(見講義「第13~16課」與人工驗算)
 EXPECTED = {
@@ -47,7 +51,11 @@ def get_all_stdout(nb):
 
 
 def main():
-    nb = nbformat.read(NOTEBOOK_PATH, as_version=4)
+    # 優先吃指令列參數(workflow 用 `python check_key_values.py "$NB"` 呼叫時會傳進來),
+    # 沒有給參數時才退回預設檔名,方便本機單獨測試。
+    notebook_path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_NOTEBOOK_PATH
+
+    nb = nbformat.read(notebook_path, as_version=4)
     stdout = get_all_stdout(nb)
 
     if not stdout.strip():
