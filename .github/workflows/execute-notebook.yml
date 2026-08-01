@@ -23,6 +23,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      # openseespy 的 Linux 編譯版本動態連結系統層級的 BLAS/LAPACK
+      # 函式庫(.so 檔案),這不是 Python 套件,pip 裝不到,得靠 apt。
+      # GitHub Actions 的乾淨 ubuntu-latest 映像檔預設不帶這個。
+      - name: Install system libraries for OpenSeesPy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libblas3 liblapack3
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
