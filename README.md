@@ -36,6 +36,8 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case04_5_real_frame_validation.ipynb)
 * [Case-04:2層樓8柱RC構架耐震設計(桃園案例)](notebooks/seismic_design_2story_8col.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/seismic_design_2story_8col.ipynb)
+* [Case-05:桃園案例X向Y向真正耦合在同一模型](notebooks/case05_3d_model.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case05_3d_model.ipynb)
 
 完整規劃(Case-01~08、FEMA273/ATC-40 定位、與姐妹專案
 [reproducible-structural-benchmarks](https://github.com/zhixiu0223/reproducible-structural-benchmarks)
