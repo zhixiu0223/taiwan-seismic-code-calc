@@ -18,6 +18,8 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case02_one_bay_one_story.ipynb)
 * [Case-02.5:反曲點法+虛功法通過](notebooks/case02_5_portal_virtual_work.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case02_5_portal_virtual_work.ipynb)
+* [Case-02.6:反曲點法U形誤差曲線, 建立FrameModel+Solver可抽換平台](notebooks/case02_6_portal_method_height_effect.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case02_6_portal_method_height_effect.ipynb)
 * [Case-03:一跨二層構架驗證通過](notebooks/case03_one_bay_two_story.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case03_one_bay_two_story.ipynb)
 * [Case-03.5:試設斷面(Trial Sizing)](notebooks/case03_5_trial_sizing.ipynb)
