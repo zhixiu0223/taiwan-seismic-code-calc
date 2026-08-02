@@ -32,68 +32,67 @@ Case-03 到 Case-04 全程使用「剪力構架假設」(`ops.fix` 拘束柱頂�
 做的事**,但直到 Case-04.5 才第一次檢查它的**有效範圍**:
 
 - 準確度取決於 $k_b/k_c$(梁勁度因子/柱勁度因子)比值
-- $k_b/k_c$ 大(柱遠比梁軟)→ 簡化幾乎無誤差,不同跨數構架算出的
-  結果幾乎相同
-- $k_b/k_c$ 小(柱梁勁度相當)→ 簡化會**抹平方向性差異**(例如把
-  X 向 3 跨、Y 向 1 跨算成完全一樣,但真梁模型顯示 X 向其實較硬)
+- $k_b/k_c$ 大(柱遠比梁軟)→ 簡化幾乎無誤差
+- $k_b/k_c$ 小(柱梁勁度相當)→ 簡化會**抹平方向性差異**
 
-**這代表 Case-03.5~04(以及依賴它們結論的所有後續判斷)的數值結果,
-只在柱子相對梁足夠柔的情況下才準確**——這不是程式錯誤,是一個直到
-現在才被量化的簡化假設邊界,詳見 Case-04.5。
+這個 $k_b/k_c$ 判準後來在 Case-02.5(反曲點法)、Case-02.6(多層構架
+U 形誤差曲線)獨立驗證過同一套規律,不是單一案例的巧合。
 
 ---
 
 ## Case 序列
 
 ### Case-01:單自由度(SDOF)—— **[已完成]**
-`notebooks/case01_sdof.ipynb` — 特徵值分析週期與靜力位移與手算閉合解
-完全吻合(相對誤差 0.00e+00)
+`notebooks/case01_sdof.ipynb`
 
 ### Case-02:一跨一層 —— **[已完成]**
-`notebooks/case02_one_bay_one_story.ipynb` — 位移法閉合解驗證側向勁度,
-含結構視覺化
+`notebooks/case02_one_bay_one_story.ipynb` — 位移法閉合解驗證側向勁度
+
+### Case-02.5:反曲點法 + 虛功法 —— **[已完成]**
+`notebooks/case02_5_portal_virtual_work.ipynb` — 另一個獨立的分析端
+快速手算工具,對照 Case-02 精確解,誤差規律與 $k_b/k_c$ 直接相關,
+跟 Case-04.5(不同案例、不同簡化手法)測出的規律方向一致
+
+### Case-02.6:反曲點法 U 形誤差曲線 —— **[已完成]**
+`notebooks/case02_6_portal_method_height_effect.ipynb` — 建立
+`FrameModel`+可抽換 `Solver` 平台,掃描 1~50 層發現誤差呈 U 形
+(先隨高度遞減、N≈12 反轉、之後單調遞增),高樓層段成因確鑿
+(柱軸向伸縮驅動的整體彎曲被反曲點法完全忽略);斷面隨高度縮放
+會拖慢誤差惡化速度,但沒有大幅推遲反轉點本身
 
 ### Case-03:一跨二層 —— **[已完成]**
-`notebooks/case03_one_bay_two_story.ipynb` — 剪力構架假設引入,2自由度
-特徵值問題,含模態振型視覺化
+`notebooks/case03_one_bay_two_story.ipynb` — 剪力構架假設引入
 
 ### Case-03.5:試設斷面 —— **[已完成]**
-`notebooks/case03_5_trial_sizing.ipynb` — 三輪迭代(18cm FAIL→20cm
-PASS margin小→40cm PASS),僅檢核位移角
+`notebooks/case03_5_trial_sizing.ipynb`
 
 ### Case-03.6:快速強度檢核 —— **[已完成]**
-`notebooks/case03_6_quick_strength_check.ipynb` — 依《結構混凝土設計
-規範》第21/22章實作軸力/彎矩/剪力檢核,發現本案例governing條件是
-位移角而非強度
+`notebooks/case03_6_quick_strength_check.ipynb` — 依《結構混凝土
+設計規範》實作,發現本案例 governing 條件是位移角而非強度
 
 ### Case-03.6b:可抽換檢核模組示範 —— **[已完成]**
-`notebooks/case03_6b_check_module_swap_demo.ipynb` — RC檢核重構+新增
-鋼結構檢核(依《鋼結構極限設計法規範》),驗證分析/檢核介面可跨材料抽換
+`notebooks/case03_6b_check_module_swap_demo.ipynb` — RC+鋼結構檢核
+(依《鋼結構極限設計法規範》),驗證分析/檢核介面可跨材料抽換
 
-### Case-03.7:Demand物件與Design Loop —— **[已完成]**
-`notebooks/case03_7_demand_design_loop.ipynb` — Demand dataclass取代
-散裝參數,`design_loop()`自動收斂,RC/鋼結構各自驗證與手動掃描結果一致
+### Case-03.7:Demand 物件與 Design Loop —— **[已完成]**
+`notebooks/case03_7_demand_design_loop.ipynb`
 
-### Case-04:桃園案例(X向3跨+Y向1跨)—— **[已完成]**
-`notebooks/case04_taoyuan_case.ipynb` — 延伸剪力構架法為通用多跨函式,
-X向Y向真實構架分析結果與法規文件第15課反曲點法估計值吻合,含3D幾何
-示意圖+2D變形對比視覺化。**發現兩方向需求完全相同**——當時判定為
-剪力構架假設的侷限,留給 Case-04.5 驗證
+### Case-04:桃園案例(X 向 3 跨 + Y 向 1 跨)—— **[已完成]**
+`notebooks/case04_taoyuan_case.ipynb` — 兩個獨立 2D 模型,結果與
+法規文件反曲點法估計值吻合,發現兩方向需求在剪力構架假設下完全
+相同(留給 Case-04.5 驗證)
 
 ### Case-04.5:真梁模型驗證 —— **[已完成]**
 `notebooks/case04_5_real_frame_validation.ipynb` — 放開轉角自由度,
-真的建梁元素(L/12經驗比試設,30x50cm),量化剪力構架假設的有效範圍:
-- 20cm柱(kb/kc≈13.7):X/Y位移比≈99%,簡化模型幾乎無誤差
-- 40cm柱(kb/kc≈0.85):X/Y位移比≈91%,簡化模型抹平約9~10%的
-  方向性差異
-- 驗證真梁模型位移大於簡化模型(簡化模型高估勁度)、X向確實比Y向硬
-- **留下未完成的想法**:能否用 $k_b/k_c$ 做「弱軸快速判定」,只做
-  governing方向的完整分析——目前只有3個資料點,門檻值不足以定案,
-  留給未來視需要另開新 Case
+量化剪力構架假設有效範圍;直接算出 $K_{eff}$(不只位移/drift):
+X 向勁度恆大於 Y 向 2 倍以上,且差距隨 $k_b/k_c$ 變小而擴大——
+剪力構架簡化不是「差異小才測不出來」,是整個方法對此效應視而不見
 
-### Case-05:三維 RC
-加入 X 方向、Y 方向、樓板剛性假設、質量偏心(含規範規定的 5% 意外
-偏心)——驗證 Case-04 用過的「N榀構架平均分攤」假設,以及扭轉效應
+### Case-05:真正的 3D 模型 —— **[已完成]**
+`notebooks/case05_3d_model.ipynb` — 8 柱+X 向梁+Y 向梁+
+`ops.rigidDiaphragm` 樓板剛性,真正耦合在同一模型;X/Y 向誤差
+(相對 Case-04.5 獨立 2D 模型)分別為 1.8%/0.2%,「N 榀構架平均
+分攤」假設驗證大致成立;含 3D 整體圖+X/Y 向切片視覺化
 
 ### Case-06:RC Fiber Section + Pushover + FEMA 273
 引入 Fiber Section(Concrete01、Steel02),跑側推分析,套 FEMA 273
@@ -119,7 +118,8 @@ Pushover 曲線轉 ADRS 座標找性能點,實作 SRSS 與 CQC 多振態組合�
 
 - 不在 Case 完全通過前平行展開下一個 Case
 - 已 PASS 封存的 Case 不回頭改程式邏輯
-- Case-05 之前不加樓板剛性以外的三維複雜度
 - 不為了「更真實」而跳過中間 Case 直接做大模型
-- 不在資料點不足時把觀察到的趨勢定案成正式工具(見 Case-04.5 的
-  弱軸判定想法)
+- 不在資料點不足時把觀察到的趨勢定案成正式工具——弱軸快速判定
+  ($k_b/k_c$ 門檻值)雖然已有 Case-02.5/02.6/04.5 三個獨立來源
+  互相佐證方向一致,但仍未定出可靠的數值門檻,留待未來視需要
+  另開新 Case 正式處理
