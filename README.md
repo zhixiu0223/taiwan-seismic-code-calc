@@ -24,8 +24,10 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case03_6_quick_strength_check.ipynb)
 * [Case-03.6b:快速強度檢核-抽換檢核界面-鋼結構示範](notebooks/case03_6b_check_module_swap_demo.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case03_6b_check_module_swap_demo.ipynb)
-* [Case-03.7:快速強度檢核-抽換檢核界面-鋼結構示範](notebooks/case03_7_demand_design_loop.ipynb)
+* [Case-03.7:Demand物件重構](notebooks/case03_7_demand_design_loop.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case03_7_demand_design_loop.ipynb)
+* [Case-04:桃園案例(X向3跨+Y向1跨真實構架)](notebooks/case04_taoyuan_case.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case04_taoyuan_case.ipynb)
 * [Case-04:2層樓8柱RC構架耐震設計(桃園案例)](notebooks/seismic_design_2story_8col.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/seismic_design_2story_8col.ipynb)
 
