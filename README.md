@@ -45,8 +45,10 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case04_6_third_party_verification.ipynb)
 * [Case-05:真正的3D模型,X向Y向真正耦合在同一模型](notebooks/case05_3d_model.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case05_3d_model.ipynb)
-* [Case-06:RC Fiber Section彎矩-曲率與P-M交互作用圖驗證(進行中)](notebooks/case06_fiber_pm_interaction.ipynb)
+* [Case-06:RC Fiber Section彎矩-曲率與P-M交互作用圖驗證](notebooks/case06_fiber_pm_interaction.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case06_fiber_pm_interaction.ipynb)
+* [Case-06_5:完整2層樓框架V-Delta側推+真正FEMA273完成](notebooks/case06_5_frame_pushover_fema273.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case06_5_frame_pushover_fema273.ipynb)
 
 完整規劃(Case 序列全貌、FEMA273/ATC-40 定位、與姐妹專案
 [reproducible-structural-benchmarks](https://github.com/zhixiu0223/reproducible-structural-benchmarks)
