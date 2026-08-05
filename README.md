@@ -54,6 +54,7 @@
 * [Case-07.5:轉換斷面與纖維積分理論對照(教學版)](notebooks/case07_5_transformed_vs_fiber_theory.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case07_5_transformed_vs_fiber_theory.ipynb)
 * [Case-08.1:矩形單筋梁撓曲設計(鋼筋配置系列起手式)](notebooks/case08_1_rectangular_beam_design.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_1_rectangular_beam_design.ipynb)
 * [Case-08.2:完成雙筋梁+T形梁設計](notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
 
