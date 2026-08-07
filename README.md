@@ -57,6 +57,8 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_1_rectangular_beam_design.ipynb)
 * [Case-08.2:雙筋梁+T形梁設計(含雙層排筋幾何)](notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
+* [Case-08.3:剪力設計](notebooks/case08_3_shear_design.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_3_shear_design.ipynb)
 
 ### 驗證紀錄(Validation Logs)
 
