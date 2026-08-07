@@ -321,6 +321,68 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
 
 
 # ============================================================
+# 設計摘要——放在notebook最後一格, 緊接在斷面圖之後
+# ============================================================
+
+def print_design_summary(kind, geometry, material, demand, result,
+                           capacity_key=None, demand_key=None,
+                           capacity_value=None, demand_value=None,
+                           bar_count_key='n_bars',
+                           bar_size_key='bar_size', bar_area_key='As_provided',
+                           bar_unit='cm^2'):
+    """統一格式的設計摘要,放在每個 Case-08.x notebook 的最後一格,緊接在斷面圖之後。
+
+    印出:幾何、材料、設計需求、選筋後實際供給、最後給合格判定——
+    數字要足夠讓人不用重新執行程式碼、光憑印出來的這幾個數字就能
+    手算驗證(不是只信任程式自己說"合格")。
+
+    kind: 標題(例如"Case-08.1 矩形單筋梁撓曲設計")
+    geometry/material/demand: dict, 直接印出key=value
+    result: design_rebar()/design_doubly_reinforced()/design_Tbeam()/
+        design_stirrups() 的回傳dict
+    capacity_key/demand_key: result裡對應「供給容量」跟「需求」的key名稱
+        (不同函式欄位名不同, 例如撓曲是phiMn_provided/Mu_demand,
+        剪力是phiVn/Vu_demand)——如果供給容量不是來自result本身的某個
+        key(例如雙筋梁/T形梁的容量是另外用應變相容法驗證出來的),
+        改用 capacity_value/demand_value 直接傳數值進來, 不要勉強找
+        一個不相關的key湊數。
+    """
+    print("="*60)
+    print(f"設計摘要: {kind}")
+    print("="*60)
+    print("\n[幾何]")
+    for k, v in geometry.items():
+        print(f"  {k} = {v}")
+    print("\n[材料]")
+    for k, v in material.items():
+        print(f"  {k} = {v}")
+    print("\n[設計需求]")
+    for k, v in demand.items():
+        print(f"  {k} = {v}")
+    print("\n[選筋後實際供給]")
+    if bar_size_key in result and bar_count_key in result:
+        print(f"  鋼筋: {result[bar_count_key]}-{result[bar_size_key]}, "
+              f"{bar_area_key} = {result[bar_area_key]:.3f} {bar_unit}")
+    elif bar_size_key in result:
+        print(f"  箍筋規格: {result[bar_size_key]}")
+    if 'spacing_cm' in result:
+        print(f"  箍筋間距 = {result['spacing_cm']:.0f} cm")
+
+    capacity = capacity_value if capacity_value is not None else result[capacity_key]
+    demand_val = demand_value if demand_value is not None else result[demand_key]
+    utilization = demand_val/capacity
+    print(f"\n[合格判定]")
+    print(f"  供給容量 = {capacity:.2f}")
+    print(f"  設計需求 = {demand_val:.2f}")
+    print(f"  使用率(需求/供給) = {utilization:.1%}")
+    status = "合格" if utilization <= 1.0 else "不合格"
+    print(f"  結論: {status}"
+          f"({'供給 >= 需求' if utilization <= 1 else '供給 < 需求, 需重新設計'})")
+    print("="*60)
+    return utilization
+
+
+# ============================================================
 # 剪力設計
 # ============================================================
 
