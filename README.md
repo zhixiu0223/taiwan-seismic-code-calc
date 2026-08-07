@@ -55,8 +55,19 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case07_5_transformed_vs_fiber_theory.ipynb)
 * [Case-08.1:矩形單筋梁撓曲設計(鋼筋配置系列起手式)](notebooks/case08_1_rectangular_beam_design.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_1_rectangular_beam_design.ipynb)
-* [Case-08.2:完成雙筋梁+T形梁設計](notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
+* [Case-08.2:雙筋梁+T形梁設計(含雙層排筋幾何)](notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
+
+### 驗證紀錄(Validation Logs)
+
+跟 Case 序列平行的獨立分類,不是 Case 序列的延伸——記錄「發現數字
+對不上→往下挖→找到根因」的診斷過程。VL-01~07 目前寫在各自對應的
+Case notebook 裡面(見 [ROADMAP.md](ROADMAP.md) 的 VL 對照表);
+VL-08 是第一個獨立成檔的驗證紀錄,因為它同時驗證 Case-08.1 跟
+Case-08.2 兩者,不適合塞進其中任何一個:
+
+* [VL-08:concreteproperties 第三方交叉驗證 design_rebar()/design_Tbeam()](notebooks/VL-08_concreteproperties_crosscheck.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/VL-08_concreteproperties_crosscheck.ipynb)
 
 完整規劃(Case 序列全貌、FEMA273/ATC-40 定位、與姐妹專案
 [reproducible-structural-benchmarks](https://github.com/zhixiu0223/reproducible-structural-benchmarks)
