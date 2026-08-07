@@ -179,6 +179,38 @@ def design_rebar(Mu_kNm, b_cm, h_cm, fc=280.0, fy=4200.0, cover=4.0,
     )
 
 
+def _phiMn_doubly_strain_compat(As_total, As_prime, d, d_prime_cm, b_cm, h_cm,
+                                  fc, fy, Es, beta1, eps_cu, phi):
+    """雙筋斷面用應變相容法算真正的供給容量phiMn(內部函式, 不對外開放,
+    design_doubly_reinforced()自己呼叫, 讓notebook不用重複實作)。"""
+    def section_force(c):
+        a = min(beta1*c, h_cm)
+        Cc = 0.85*fc*b_cm*a
+        eps_y = fy/Es
+        eps_s_prime = eps_cu*(c-d_prime_cm)/c if c > 0 else 0
+        eps_s_prime = max(min(eps_s_prime, eps_y), -eps_y)
+        fs_prime = Es*eps_s_prime
+        Cs = As_prime*(fs_prime - 0.85*fc if d_prime_cm <= a else fs_prime)
+        eps_s = eps_cu*(c-d)/c if c > 0 else 0
+        eps_s = max(min(eps_s, eps_y), -eps_y)
+        fs = Es*eps_s
+        Ts = As_total*fs
+        N = Cc + Cs + Ts
+        M = Cc*(d-a/2) + Cs*(d-d_prime_cm)
+        return N, M
+
+    c_lo, c_hi = 0.1, h_cm
+    for _ in range(100):
+        c_mid = (c_lo+c_hi)/2
+        N, _ = section_force(c_mid)
+        if N > 0:
+            c_hi = c_mid
+        else:
+            c_lo = c_mid
+    _, M_final = section_force((c_lo+c_hi)/2)
+    return phi*M_final*9.80665e-5
+
+
 def design_doubly_reinforced(Mu_kNm, b_cm, h_cm, d_prime_cm, fc=280.0, fy=4200.0,
                                Es=2.0e6, cover=4.0, eps_t_limit=0.005, eps_cu=0.003,
                                phi=0.9, stirrup_d=0.95, bar_d_guess=2.5, bar_table=None):
@@ -189,6 +221,11 @@ def design_doubly_reinforced(Mu_kNm, b_cm, h_cm, d_prime_cm, fc=280.0, fy=4200.0
 
     含排筋幾何(單層/雙層), 邏輯跟design_rebar()一致: 算一次+修正一次,
     不是無窮迭代(實測發現無窮迭代在不同鋼筋尺寸間會震盪不收斂)。
+
+    回傳的phiMn_provided是用應變相容法算出的真正供給容量(不是代數
+    公式解), 因為雙筋斷面的Whitney簡化公式解跟"排筋後的真實d/As"
+    搭配時有~0.3%量級的已知近似誤差(算一次+修正一次法造成), 應變
+    相容法才是嚴謹的最終驗證, 直接內建在這裡, 呼叫端不用重新實作。
     """
     if bar_table is None:
         bar_table = DEFAULT_BAR_TABLE
@@ -237,22 +274,67 @@ def design_doubly_reinforced(Mu_kNm, b_cm, h_cm, d_prime_cm, fc=280.0, fy=4200.0
             raise ValueError("雙層修正後仍排不下, 需要加大梁寬")
         d, r, chosen, n_passes = d_pass2, r2, chosen2, 2
 
+    phiMn_provided = _phiMn_doubly_strain_compat(
+        chosen['As_provided'], r['As_prime'], d, d_prime_cm, b_cm, h_cm,
+        fc, fy, Es, beta1, eps_cu, phi)
+
     return dict(need_doubly=True, As_total=r['As_total'], As_prime=r['As_prime'],
                 As1=r['As1'], As2=r['As2'], Mu1=r['Mu1'], Mu2=r['Mu2'], d=d,
                 c_max=r['c_max'], eps_s_prime=r['eps_s_prime'],
                 compression_yields=r['compression_yields'], fs_prime=r['fs_prime'],
                 bar_size=chosen['bar_size'], n_bars=chosen['n_bars'], bar_d=chosen['bar_d'],
-                As_provided=chosen['As_provided'], layout=chosen['layout'], n_passes=n_passes)
+                As_provided=chosen['As_provided'], layout=chosen['layout'], n_passes=n_passes,
+                phiMn_provided=phiMn_provided, Mu_demand=Mu_kNm,
+                utilization=Mu_kNm/phiMn_provided)
+
+
+def _phiMn_Tbeam_strain_compat(As_total, d, bw_cm, beff_cm, hf_cm, h_cm,
+                                 fc, fy, Es, beta1, eps_cu, phi):
+    """T形斷面用應變相容法算真正的供給容量phiMn(內部函式)。壓力區可能
+    跨越翼板+腹板(a>hf), 這時合力要拆成翼板部分(全寬beff, 深度hf)+
+    腹板部分(寬bw, 深度a-hf)分別取矩, 跟design_Tbeam()正式設計時的
+    近似公式解是獨立的第二種算法。"""
+    def section_force(c):
+        a = min(beta1*c, h_cm)
+        if a <= hf_cm:
+            Cc = 0.85*fc*beff_cm*a
+            M_c = Cc*(d-a/2)
+        else:
+            Cc_f = 0.85*fc*beff_cm*hf_cm
+            Cc_w = 0.85*fc*bw_cm*(a-hf_cm)
+            Cc = Cc_f + Cc_w
+            M_c = Cc_f*(d-hf_cm/2) + Cc_w*(d-hf_cm-(a-hf_cm)/2)
+        eps_y = fy/Es
+        eps_s = eps_cu*(c-d)/c if c > 0 else 0
+        eps_s = max(min(eps_s, eps_y), -eps_y)
+        Ts = As_total*Es*eps_s
+        return Cc+Ts, M_c
+
+    c_lo, c_hi = 0.1, h_cm
+    for _ in range(100):
+        c_mid = (c_lo+c_hi)/2
+        N, _ = section_force(c_mid)
+        if N > 0:
+            c_hi = c_mid
+        else:
+            c_lo = c_mid
+    _, M_final = section_force((c_lo+c_hi)/2)
+    return phi*M_final*9.80665e-5
 
 
 def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
                   cover=4.0, phi=0.9, stirrup_d=0.95, bar_d_guess=2.5, beta1=None,
-                  bar_table=None):
+                  bar_table=None, Es=2.0e6, eps_cu=0.003):
     """T形梁撓曲設計。先試矩形梁(b=beff), a<=hf則直接採用;
     a>hf才拆成翼板懸挑部分+腹板矩形部分分開算。
 
     拉力鋼筋排列用腹板寬度bw(不是beff)——鋼筋要放在腹板裡, 不是
     整個翼板寬度。含排筋幾何(單層/雙層), 邏輯跟前兩個函式一致。
+
+    回傳的phiMn_provided是用應變相容法算出的真正供給容量, 不是
+    design_Tbeam()正式設計時用的近似代數解(翼板+腹板分開算力偶)
+    ——這個近似解在a_w/d比例大時會失準(低fc、重度配筋案例),
+    phiMn_provided直接內建做嚴謹驗證, 呼叫端不用重新實作。
     """
     if bar_table is None:
         bar_table = DEFAULT_BAR_TABLE
@@ -317,6 +399,13 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
         result['a_w'] = r['a_w']
     else:
         result['a'] = r['a']
+
+    phiMn_provided = _phiMn_Tbeam_strain_compat(
+        chosen['As_provided'], d, bw_cm, beff_cm, hf_cm, h_cm,
+        fc, fy, Es, beta1, eps_cu, phi)
+    result['phiMn_provided'] = phiMn_provided
+    result['Mu_demand'] = Mu_kNm
+    result['utilization'] = Mu_kNm/phiMn_provided
     return result
 
 
