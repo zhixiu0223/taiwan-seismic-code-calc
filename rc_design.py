@@ -366,7 +366,8 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
         rho_w = (0.85*fc/fy)*(1-math.sqrt(disc_w))
         Asw = rho_w*bw_cm*d
         a_w = Asw*fy/(0.85*fc*bw_cm)
-        return dict(ok=True, mode='T-beam', As_total=Asf+Asw, Asf=Asf, Asw=Asw, a_w=a_w)
+        return dict(ok=True, mode='T-beam', As_total=Asf+Asw, Asf=Asf, Asw=Asw, a_w=a_w,
+                    Muf=Muf_kNm, Muw=Muw_kNm)
 
     d_pass1 = h_cm - cover - stirrup_d - bar_d_guess/2
     r1 = solve_at_d(d_pass1)
@@ -397,6 +398,8 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
         result['Asf'] = r['Asf']
         result['Asw'] = r['Asw']
         result['a_w'] = r['a_w']
+        result['Muf'] = r['Muf']    # 翼板懸挑部分承擔的彎矩(kN-m)
+        result['Muw'] = r['Muw']    # 腹板矩形部分承擔的彎矩(kN-m)
     else:
         result['a'] = r['a']
 
@@ -406,6 +409,61 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
     result['phiMn_provided'] = phiMn_provided
     result['Mu_demand'] = Mu_kNm
     result['utilization'] = Mu_kNm/phiMn_provided
+    return result
+
+
+def analyze_section_capacity(As_cm2, d_cm, b_cm=None, h_cm=None, As_prime_cm2=None,
+                               d_prime_cm=None, bw_cm=None, beff_cm=None, hf_cm=None,
+                               fc=280.0, fy=4200.0, Es=2.0e6, phi=0.9, eps_cu=0.003,
+                               beta1=None, Mu_kNm=None):
+    """給定斷面幾何+材料+**已經知道的鋼筋量**, 直接用應變相容法算標稱
+    強度phiMn——這是分析(analysis), 不是設計(design):design_rebar()
+    等函式是「給Mu, 反推需要多少鋼筋」, 這個函式是反過來「已經有一根
+    梁(不管是既有結構或你自己指定的鋼筋量), 它能扛多少」。
+
+    根據傳入的參數自動判斷斷面類型:
+    - 只給 As_cm2, b_cm, h_cm: 矩形單筋斷面
+    - 加給 As_prime_cm2, d_prime_cm: 矩形雙筋斷面
+    - 給 bw_cm, beff_cm, hf_cm(不給b_cm/h_cm, 用h_cm=d_cm+估計值也可以
+      但建議直接給h_cm): T形斷面
+
+    如果傳入 Mu_kNm, 順便回傳 utilization 判定合格與否; 不傳就只回傳
+    phiMn 本身。
+
+    這個函式底層跟 design_doubly_reinforced()/design_Tbeam() 內部用
+    的是同一套應變相容法, 只是這裡不做選筋、不做排筋幾何檢查——單純
+    分析「給定這個斷面配這些鋼筋, 標稱強度是多少」, 用途包括: 核對
+    既有結構圖說的配筋夠不夠、快速試算不同鋼筋量的容量而不用跑完整
+    設計流程。跟外部工具 concreteproperties(VL-08 用來交叉驗證的
+    第三方套件)做的是同一類事, 這裡是本repo自己內建的版本。
+    """
+    if beta1 is None:
+        beta1 = 0.85 if fc <= 280 else max(0.65, 0.85-0.05*(fc-280)/70)
+
+    if bw_cm is not None:
+        # T形斷面
+        if beff_cm is None or hf_cm is None or h_cm is None:
+            raise ValueError("T形斷面分析需要同時給bw_cm/beff_cm/hf_cm/h_cm")
+        phiMn = _phiMn_Tbeam_strain_compat(
+            As_cm2, d_cm, bw_cm, beff_cm, hf_cm, h_cm, fc, fy, Es, beta1, eps_cu, phi)
+    elif As_prime_cm2 is not None:
+        # 矩形雙筋斷面
+        if b_cm is None or h_cm is None or d_prime_cm is None:
+            raise ValueError("雙筋斷面分析需要同時給b_cm/h_cm/d_prime_cm")
+        phiMn = _phiMn_doubly_strain_compat(
+            As_cm2, As_prime_cm2, d_cm, d_prime_cm, b_cm, h_cm, fc, fy, Es, beta1, eps_cu, phi)
+    else:
+        # 矩形單筋斷面(直接用Whitney公式, 跟design_rebar()驗算時同一套)
+        if b_cm is None:
+            raise ValueError("矩形斷面分析需要給b_cm(單筋)或加b_prime_cm(雙筋)")
+        a = As_cm2*fy/(0.85*fc*b_cm)
+        Mn_kgfcm = As_cm2*fy*(d_cm-a/2)
+        phiMn = phi*Mn_kgfcm*9.80665e-5
+
+    result = dict(phiMn_provided=phiMn)
+    if Mu_kNm is not None:
+        result['Mu_demand'] = Mu_kNm
+        result['utilization'] = Mu_kNm/phiMn
     return result
 
 
