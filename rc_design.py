@@ -81,8 +81,15 @@ def effective_depth_multilayer(layout_result, bar_d_cm, h_cm, cover_cm, stirrup_
 
 
 def choose_bars_with_layout(As_req, b_cm, cover, stirrup_d, bar_table=None):
-    """幫需求鋼筋量選一組鋼筋+排列方式(單層優先, 不行才雙層),
-    在通過layout檢查的候選裡挑過量最少的。"""
+    """幫需求鋼筋量選一組鋼筋+排列方式。
+
+    排序優先權: 先比層數(單層優先於雙層), 層數相同才比過量比例(越少越好)。
+    ——這是修正過的邏輯: 原本只比過量比例, 會導致「Mu增加、需求鋼筋量增加,
+    卻因為換了一個鋼筋尺寸而選到單層排列, 有效深度d反而變好」這種非單調
+    現象(在Mu由小到大逐步掃描時, 拒絕/接受邊界會忽上忽下, 不是平滑遞減)。
+    只比過量比例不會給出不安全的設計(每個候選都個別驗證過), 但層數優先
+    這個修正讓整體行為更符合工程直覺(邁向union: 對同一個b/h, Mu越大,
+    有效深度只會持平或變差, 不會無端變好)。"""
     if bar_table is None:
         bar_table = DEFAULT_BAR_TABLE
     best = None
@@ -92,9 +99,16 @@ def choose_bars_with_layout(As_req, b_cm, cover, stirrup_d, bar_table=None):
         if not layout['ok']:
             continue
         over_ratio = n*Ab/As_req
-        if best is None or over_ratio < best['over_ratio']:
-            best = dict(bar_size=name, n_bars=n, As_provided=n*Ab, bar_d=db,
-                         over_ratio=over_ratio, layout=layout)
+        candidate = dict(bar_size=name, n_bars=n, As_provided=n*Ab, bar_d=db,
+                          over_ratio=over_ratio, layout=layout)
+        if best is None:
+            best = candidate
+            continue
+        # 先比層數(少的優先), 層數相同才比過量比例
+        if layout['n_layers'] < best['layout']['n_layers']:
+            best = candidate
+        elif layout['n_layers'] == best['layout']['n_layers'] and over_ratio < best['over_ratio']:
+            best = candidate
     return best
 
 
@@ -307,8 +321,85 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
 
 
 # ============================================================
-# 視覺化——只負責畫已經算好的layout, 不自己決定怎麼排
+# 剪力設計
 # ============================================================
+
+DEFAULT_STIRRUP_TABLE = {"#3(D10)": 0.71, "#4(D13)": 1.267}
+
+
+def shear_capacity_concrete(bw_cm, d_cm, fc=280.0, phi=0.75):
+    """混凝土本身的剪力容量 phiVc(強度設計法簡化公式, 無顯著軸力情況)。
+    Vc = 0.53*sqrt(fc')*bw*d (kgf/cm^2單位), 回傳 phiVc 單位 kN。"""
+    Vc_kgf = 0.53*math.sqrt(fc)*bw_cm*d_cm
+    return phi*Vc_kgf*9.80665e-3
+
+
+def design_stirrups(Vu_kN, bw_cm, d_cm, fc=280.0, fyv=2800.0, phi=0.75,
+                     stirrup_table=None):
+    """
+    箍筋設計(強度設計法, 雙肢垂直箍筋)。
+
+    參數
+    ----
+    Vu_kN : 設計剪力需求 (kN) ——注意單位是kN, 不是kN-m(剪力不是彎矩)
+    bw_cm, d_cm : 梁寬、有效深度 (cm) ——d建議用design_rebar()/
+        design_doubly_reinforced()回傳的真實排筋後有效深度, 不是原始假設值
+    fyv : 箍筋降伏強度 (kgf/cm^2), 常用比主筋低的等級(SD280), 可與主筋fy不同
+
+    回傳
+    ----
+    dict, 含: need_stirrups(是否需要剪力筋)、ok(能否設計出可行方案)、
+    bar_size/spacing_cm(選定箍筋規格與間距)、phiVc/phiVn(供給容量)、utilization
+    """
+    if stirrup_table is None:
+        stirrup_table = DEFAULT_STIRRUP_TABLE
+
+    Vu_kgf = Vu_kN*1000/9.80665
+    Vc_kgf = 0.53*math.sqrt(fc)*bw_cm*d_cm
+    phiVc_kgf = phi*Vc_kgf
+    phiVc_kN = phiVc_kgf*9.80665e-3
+
+    if Vu_kgf <= 0.5*phiVc_kgf:
+        return dict(need_stirrups=False, ok=True, phiVc=phiVc_kN, Vu_demand=Vu_kN,
+                    reason="Vu<=0.5*phiVc, 理論上不需要剪力筋(實務上仍建議配置最小箍筋)")
+
+    Vs_req_kgf = max(0.0, Vu_kgf/phi - Vc_kgf)
+    Vs_max_kgf = 2.2*math.sqrt(fc)*bw_cm*d_cm
+    if Vs_req_kgf > Vs_max_kgf:
+        return dict(need_stirrups=True, ok=False, phiVc=phiVc_kN, Vu_demand=Vu_kN,
+                    reason=f"Vs需求超過上限(斜壓破壞風險), 需加大bw或d "
+                           f"(Vs_req={Vs_req_kgf*9.80665e-3:.1f}kN > "
+                           f"Vs_max={Vs_max_kgf*9.80665e-3:.1f}kN)")
+
+    best = None
+    for name, Ab in stirrup_table.items():
+        Av = 2*Ab
+        s_req = Av*fyv*d_cm/Vs_req_kgf if Vs_req_kgf > 0 else 1e9
+        s_max = min(d_cm/2 if Vs_req_kgf <= 1.1*math.sqrt(fc)*bw_cm*d_cm else d_cm/4, 60.0)
+        s_use = min(s_req, s_max)
+        s_practical = math.floor(s_use/5)*5
+        if s_practical < 5:
+            continue
+        Av_min_check = max(0.2*math.sqrt(fc)*bw_cm*s_practical/fyv,
+                             3.5*bw_cm*s_practical/fyv)
+        if Av < Av_min_check:
+            continue
+        if best is None or s_practical > best['spacing']:
+            best = dict(bar_size=name, spacing=s_practical, Av=Av)
+
+    if best is None:
+        return dict(need_stirrups=True, ok=False, phiVc=phiVc_kN, Vu_demand=Vu_kN,
+                    reason="沒有找到滿足最小鋼筋量限制的箍筋規格+間距組合")
+
+    Vs_provided_kgf = best['Av']*fyv*d_cm/best['spacing']
+    phiVn_kN = phi*(Vc_kgf+Vs_provided_kgf)*9.80665e-3
+
+    return dict(need_stirrups=True, ok=True, bar_size=best['bar_size'],
+                spacing_cm=best['spacing'], Av=best['Av'],
+                phiVc=phiVc_kN, Vs_provided=Vs_provided_kgf*9.80665e-3,
+                phiVn=phiVn_kN, Vu_demand=Vu_kN, utilization=Vu_kN/phiVn_kN)
+
+
 
 def draw_rc_section(b_cm, h_cm, cover_cm, layout, bar_diameter_cm,
                       As_prime_cm2=None, d_prime_cm=None, title="RC Section", ax=None):

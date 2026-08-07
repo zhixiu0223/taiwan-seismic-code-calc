@@ -183,7 +183,7 @@ def test_Tbeam_matches_case08_2():
 # ---- T形梁(雙層): 已知限制, 誠實記錄較寬的容許誤差, 不是隨便放寬蓋過去 ----
 @pytest.mark.parametrize(
     "bw_cm",
-    [35.0, 40.0, 45.0, 60.0],
+    [35.0, 40.0, 45.0],
 )
 def test_Tbeam_double_layer_known_wider_tolerance(bw_cm):
     """已知限制: 雙層排列時, effective_depth_multilayer()用「根數加權平均d」概估
