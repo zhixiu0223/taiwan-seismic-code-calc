@@ -590,6 +590,44 @@ def draw_Tbeam_section(bw_cm, beff_cm, hf_cm, h_cm, cover_cm, layout,
     return ax, spacing_ok
 
 
+def draw_stirrup_elevation(L_cm, h_cm, cover_cm, spacing_cm, bar_size,
+                             title="Stirrup Elevation", ax=None):
+    """箍筋立面圖(側視), 顯示沿梁長的箍筋間距分布——這是實務上箍筋
+    設計真正要交代的東西。跟縱向鋼筋不同, 箍筋的斷面圖資訊量很低
+    (畫出來只有一個矩形圈, 看不出設計重點), 立面圖(側視)才看得出
+    間距, 這是業界通用的畫法。"""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(11, 3))
+
+    ax.add_patch(plt.Rectangle((0, 0), L_cm, h_cm, facecolor='#e8e8e8',
+                                 edgecolor='black', linewidth=1.5))
+    ax.plot([cover_cm, L_cm-cover_cm], [cover_cm, cover_cm], color='#333333', lw=2)
+    ax.plot([cover_cm, L_cm-cover_cm], [h_cm-cover_cm, h_cm-cover_cm], color='#333333', lw=2)
+
+    n_stirrups = int((L_cm - 2*cover_cm) // spacing_cm) + 1
+    x_positions = [cover_cm + i*spacing_cm for i in range(n_stirrups)
+                   if cover_cm + i*spacing_cm <= L_cm-cover_cm]
+    for x in x_positions:
+        ax.plot([x, x], [cover_cm*0.3, h_cm-cover_cm*0.3], color='#c00000', lw=1.5)
+
+    if len(x_positions) >= 2:
+        ax.annotate('', xy=(x_positions[1], -h_cm*0.15), xytext=(x_positions[0], -h_cm*0.15),
+                    arrowprops=dict(arrowstyle='<->', color='blue'))
+        ax.text((x_positions[0]+x_positions[1])/2, -h_cm*0.28, f's={spacing_cm:.0f}cm',
+                ha='center', fontsize=9, color='blue')
+
+    ax.text(L_cm/2, h_cm+h_cm*0.15,
+            f"{bar_size} stirrups @ {spacing_cm:.0f}cm o.c. ({len(x_positions)} total)",
+            ha='center', fontsize=10)
+    ax.set_xlim(-L_cm*0.05, L_cm*1.05)
+    ax.set_ylim(-h_cm*0.4, h_cm*1.3)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.set_title(title, fontsize=10)
+    return ax
+
+
 if __name__ == "__main__":
     r = design_rebar(112.5, 30.0, 50.0, cover=4.0)
     assert abs(r['phiMn_provided'] - 119.17) < 0.1, "自我測試失敗(單筋案例), 數字跟已知案例對不上"
