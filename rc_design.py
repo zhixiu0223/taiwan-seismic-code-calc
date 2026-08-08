@@ -179,10 +179,35 @@ def design_rebar(Mu_kNm, b_cm, h_cm, fc=280.0, fy=4200.0, cover=4.0,
     )
 
 
+def _phi_from_eps_t(eps_t, eps_ty=0.002):
+    """ACI 318 / 台灣混凝土結構設計規範強度折減係數phi, 依最外層拉力鋼筋
+    淨拉應變eps_t(不是加權形心的應變, 是排筋位置最外層那一根的應變)
+    決定: eps_t>=0.005拉力控制phi=0.90; eps_t<=eps_ty(壓力控制邊界,
+    SD420鋼筋eps_y=0.0021, 這裡簡化用規範慣用值0.002)phi=0.65;
+    中間過渡區線性內插。這是這次真正修正的核心——之前的版本固定
+    phi=0.9, 沒有做這個過渡區判斷。"""
+    if eps_t >= 0.005:
+        return 0.9
+    if eps_t <= eps_ty:
+        return 0.65
+    return 0.65 + (eps_t - eps_ty) * (0.25 / (0.005 - eps_ty))
+
+
 def _phiMn_doubly_strain_compat(As_total, As_prime, d, d_prime_cm, b_cm, h_cm,
-                                  fc, fy, Es, beta1, eps_cu, phi):
+                                  fc, fy, Es, beta1, eps_cu, phi, d_t=None):
     """雙筋斷面用應變相容法算真正的供給容量phiMn(內部函式, 不對外開放,
-    design_doubly_reinforced()自己呼叫, 讓notebook不用重複實作)。"""
+    design_doubly_reinforced()自己呼叫, 讓notebook不用重複實作)。
+
+    修正記錄: 之前這裡直接用固定phi(呼叫端傳進來的0.9), 沒有依照
+    ACI 318/台灣規範第3.3節的過渡區規則(eps_t<0.005時phi要線性折減)
+    重新判斷——這是真實存在的bug, 在拉力鋼筋排成雙層、最外層淨拉應變
+    eps_t(在d_t量, 不是在加權形心d量)落入0.002~0.005過渡區時,
+    會高估phiMn(此前發現過一個案例高估達~10%)。d_t預設等於d(單層
+    時兩者相同), 排雙層時呼叫端要傳入真正的最外層深度。
+    """
+    if d_t is None:
+        d_t = d
+
     def section_force(c):
         a = min(beta1*c, h_cm)
         Cc = 0.85*fc*b_cm*a
@@ -207,8 +232,12 @@ def _phiMn_doubly_strain_compat(As_total, As_prime, d, d_prime_cm, b_cm, h_cm,
             c_hi = c_mid
         else:
             c_lo = c_mid
-    _, M_final = section_force((c_lo+c_hi)/2)
-    return phi*M_final*9.80665e-5
+    c_final = (c_lo+c_hi)/2
+    _, M_final = section_force(c_final)
+    eps_t_true = eps_cu*(c_final-d_t)/c_final if c_final > 0 else 0
+    eps_t_true = -eps_t_true  # section_force內部用"受壓為正"的號約定, 這裡轉成"拉應變為正"回報
+    phi_true = _phi_from_eps_t(eps_t_true, eps_ty=fy/Es)
+    return phi_true*M_final*9.80665e-5, eps_t_true, phi_true
 
 
 def design_doubly_reinforced(Mu_kNm, b_cm, h_cm, d_prime_cm, fc=280.0, fy=4200.0,
@@ -274,12 +303,16 @@ def design_doubly_reinforced(Mu_kNm, b_cm, h_cm, d_prime_cm, fc=280.0, fy=4200.0
             raise ValueError("雙層修正後仍排不下, 需要加大梁寬")
         d, r, chosen, n_passes = d_pass2, r2, chosen2, 2
 
-    phiMn_provided = _phiMn_doubly_strain_compat(
+    # 單層時d_t就是d(只有一層, 沒有最外層跟加權形心不同這回事);
+    # 雙層以上才需要用真正選到的鋼筋直徑重算最外層深度
+    d_t = d if chosen['layout']['n_layers'] == 1 else h_cm - cover - stirrup_d - chosen['bar_d']/2
+    phiMn_provided, eps_t_actual, phi_actual = _phiMn_doubly_strain_compat(
         chosen['As_provided'], r['As_prime'], d, d_prime_cm, b_cm, h_cm,
-        fc, fy, Es, beta1, eps_cu, phi)
+        fc, fy, Es, beta1, eps_cu, phi, d_t=d_t)
 
     return dict(need_doubly=True, As_total=r['As_total'], As_prime=r['As_prime'],
-                As1=r['As1'], As2=r['As2'], Mu1=r['Mu1'], Mu2=r['Mu2'], d=d,
+                As1=r['As1'], As2=r['As2'], Mu1=r['Mu1'], Mu2=r['Mu2'], d=d, d_t=d_t,
+                eps_t=eps_t_actual, phi_used=phi_actual,
                 c_max=r['c_max'], eps_s_prime=r['eps_s_prime'],
                 compression_yields=r['compression_yields'], fs_prime=r['fs_prime'],
                 bar_size=chosen['bar_size'], n_bars=chosen['n_bars'], bar_d=chosen['bar_d'],
@@ -289,11 +322,20 @@ def design_doubly_reinforced(Mu_kNm, b_cm, h_cm, d_prime_cm, fc=280.0, fy=4200.0
 
 
 def _phiMn_Tbeam_strain_compat(As_total, d, bw_cm, beff_cm, hf_cm, h_cm,
-                                 fc, fy, Es, beta1, eps_cu, phi):
+                                 fc, fy, Es, beta1, eps_cu, phi, d_t=None):
     """T形斷面用應變相容法算真正的供給容量phiMn(內部函式)。壓力區可能
     跨越翼板+腹板(a>hf), 這時合力要拆成翼板部分(全寬beff, 深度hf)+
     腹板部分(寬bw, 深度a-hf)分別取矩, 跟design_Tbeam()正式設計時的
-    近似公式解是獨立的第二種算法。"""
+    近似公式解是獨立的第二種算法。
+
+    修正記錄: 之前這裡直接用固定phi, 沒有依規範過渡區規則重新判斷
+    ——這是真實bug, 排雙層時eps_t要在最外層d_t量, 不是加權形心d,
+    這裡曾經發現一個案例(7-D32排成4+3雙層)高估phiMn達~10%(716.77
+    vs 正確值~649)。d_t預設等於d(單層時兩者相同)。
+    """
+    if d_t is None:
+        d_t = d
+
     def section_force(c):
         a = min(beta1*c, h_cm)
         if a <= hf_cm:
@@ -318,8 +360,11 @@ def _phiMn_Tbeam_strain_compat(As_total, d, bw_cm, beff_cm, hf_cm, h_cm,
             c_hi = c_mid
         else:
             c_lo = c_mid
-    _, M_final = section_force((c_lo+c_hi)/2)
-    return phi*M_final*9.80665e-5
+    c_final = (c_lo+c_hi)/2
+    _, M_final = section_force(c_final)
+    eps_t_true = eps_cu*(d_t-c_final)/c_final if c_final > 0 else 0
+    phi_true = _phi_from_eps_t(eps_t_true, eps_ty=fy/Es)
+    return phi_true*M_final*9.80665e-5, eps_t_true, phi_true
 
 
 def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
@@ -403,9 +448,13 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
     else:
         result['a'] = r['a']
 
-    phiMn_provided = _phiMn_Tbeam_strain_compat(
+    d_t = d if chosen['layout']['n_layers'] == 1 else h_cm - cover - stirrup_d - chosen['bar_d']/2
+    phiMn_provided, eps_t_actual, phi_actual = _phiMn_Tbeam_strain_compat(
         chosen['As_provided'], d, bw_cm, beff_cm, hf_cm, h_cm,
-        fc, fy, Es, beta1, eps_cu, phi)
+        fc, fy, Es, beta1, eps_cu, phi, d_t=d_t)
+    result['d_t'] = d_t
+    result['eps_t'] = eps_t_actual
+    result['phi_used'] = phi_actual
     result['phiMn_provided'] = phiMn_provided
     result['Mu_demand'] = Mu_kNm
     result['utilization'] = Mu_kNm/phiMn_provided
@@ -415,7 +464,7 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
 def analyze_section_capacity(As_cm2, d_cm, b_cm=None, h_cm=None, As_prime_cm2=None,
                                d_prime_cm=None, bw_cm=None, beff_cm=None, hf_cm=None,
                                fc=280.0, fy=4200.0, Es=2.0e6, phi=0.9, eps_cu=0.003,
-                               beta1=None, Mu_kNm=None):
+                               beta1=None, Mu_kNm=None, d_t_cm=None):
     """給定斷面幾何+材料+**已經知道的鋼筋量**, 直接用應變相容法算標稱
     強度phiMn——這是分析(analysis), 不是設計(design):design_rebar()
     等函式是「給Mu, 反推需要多少鋼筋」, 這個函式是反過來「已經有一根
@@ -427,8 +476,15 @@ def analyze_section_capacity(As_cm2, d_cm, b_cm=None, h_cm=None, As_prime_cm2=No
     - 給 bw_cm, beff_cm, hf_cm(不給b_cm/h_cm, 用h_cm=d_cm+估計值也可以
       但建議直接給h_cm): T形斷面
 
+    d_t_cm: 最外層拉力鋼筋的有效深度(不是加權形心d_cm)——排單層時
+    兩者相同, 可以省略; 排雙層以上時, 規範規定phi要看最外層那一根
+    的淨拉應變, 不是加權形心, 如果你在分析一個已知排成雙層的既有
+    結構, 這裡要傳入真正的最外層深度, 不然phi判斷會不準確(這是
+    這次修正的重點, 之前版本直接固定phi=0.9, 沒有做這個檢查)。
+
     如果傳入 Mu_kNm, 順便回傳 utilization 判定合格與否; 不傳就只回傳
-    phiMn 本身。
+    phiMn 本身。回傳的dict也會附上eps_t/phi_used, 讓你直接看到
+    折減係數是不是被過渡區規則調整過。
 
     這個函式底層跟 design_doubly_reinforced()/design_Tbeam() 內部用
     的是同一套應變相容法, 只是這裡不做選筋、不做排筋幾何檢查——單純
@@ -439,28 +495,32 @@ def analyze_section_capacity(As_cm2, d_cm, b_cm=None, h_cm=None, As_prime_cm2=No
     """
     if beta1 is None:
         beta1 = 0.85 if fc <= 280 else max(0.65, 0.85-0.05*(fc-280)/70)
+    if d_t_cm is None:
+        d_t_cm = d_cm
 
     if bw_cm is not None:
-        # T形斷面
         if beff_cm is None or hf_cm is None or h_cm is None:
             raise ValueError("T形斷面分析需要同時給bw_cm/beff_cm/hf_cm/h_cm")
-        phiMn = _phiMn_Tbeam_strain_compat(
-            As_cm2, d_cm, bw_cm, beff_cm, hf_cm, h_cm, fc, fy, Es, beta1, eps_cu, phi)
+        phiMn, eps_t_actual, phi_actual = _phiMn_Tbeam_strain_compat(
+            As_cm2, d_cm, bw_cm, beff_cm, hf_cm, h_cm, fc, fy, Es, beta1, eps_cu, phi,
+            d_t=d_t_cm)
     elif As_prime_cm2 is not None:
-        # 矩形雙筋斷面
         if b_cm is None or h_cm is None or d_prime_cm is None:
             raise ValueError("雙筋斷面分析需要同時給b_cm/h_cm/d_prime_cm")
-        phiMn = _phiMn_doubly_strain_compat(
-            As_cm2, As_prime_cm2, d_cm, d_prime_cm, b_cm, h_cm, fc, fy, Es, beta1, eps_cu, phi)
+        phiMn, eps_t_actual, phi_actual = _phiMn_doubly_strain_compat(
+            As_cm2, As_prime_cm2, d_cm, d_prime_cm, b_cm, h_cm, fc, fy, Es, beta1, eps_cu, phi,
+            d_t=d_t_cm)
     else:
-        # 矩形單筋斷面(直接用Whitney公式, 跟design_rebar()驗算時同一套)
         if b_cm is None:
             raise ValueError("矩形斷面分析需要給b_cm(單筋)或加b_prime_cm(雙筋)")
         a = As_cm2*fy/(0.85*fc*b_cm)
+        c = a/beta1
+        eps_t_actual = eps_cu*(d_t_cm-c)/c if c > 0 else 0
+        phi_actual = _phi_from_eps_t(eps_t_actual, eps_ty=fy/Es)
         Mn_kgfcm = As_cm2*fy*(d_cm-a/2)
-        phiMn = phi*Mn_kgfcm*9.80665e-5
+        phiMn = phi_actual*Mn_kgfcm*9.80665e-5
 
-    result = dict(phiMn_provided=phiMn)
+    result = dict(phiMn_provided=phiMn, eps_t=eps_t_actual, phi_used=phi_actual)
     if Mu_kNm is not None:
         result['Mu_demand'] = Mu_kNm
         result['utilization'] = Mu_kNm/phiMn
