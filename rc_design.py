@@ -158,12 +158,35 @@ def design_rebar(Mu_kNm, b_cm, h_cm, fc=280.0, fy=4200.0, cover=4.0,
     if chosen1['layout']['n_layers'] == 1:
         d, r, chosen, n_passes = d_pass1, r1, chosen1, 1
     else:
-        d_pass2 = effective_depth_multilayer(chosen1['layout'], chosen1['bar_d'], h_cm, cover, stirrup_d)
-        r2 = solve_at_d(d_pass2)
-        chosen2 = choose_bars_with_layout(r2['As_req'], b_cm, cover, stirrup_d, bar_table)
-        if chosen2 is None:
-            raise ValueError("雙層修正後仍排不下, 需要加大梁寬")
-        d, r, chosen, n_passes = d_pass2, r2, chosen2, 2
+        # 修正過程記錄: 選筋+算d最多疊代6輪, 每輪都用"上一輪真正選到的
+        # 鋼筋規格"重算有效深度(不是延用第一輪的筋徑, 這是真實抓到的
+        # bug——例如第一輪選#10排雙層算出d, 第二輪需求量變大改選#8,
+        # 若不重算d, 後續a/c/eps_t/Mn全部建立在不一致的d上)。
+        #
+        # 也真實抓到過選筋在多個尺寸之間循環、不會收斂的案例(#9/#10/#8
+        # 之間形成極限環, 不是接近收斂)——這時候不報錯放棄, 改成從
+        # 疊代過程中挑d最小(最保守, 對應鋼筋量最大)的那一輪自洽結果
+        # 當最終答案, 保證方向上不會高估容量。
+        d_cur = effective_depth_multilayer(chosen1['layout'], chosen1['bar_d'], h_cm, cover, stirrup_d)
+        history = []
+        for _extra_pass in range(6):
+            r_cur = solve_at_d(d_cur)
+            chosen_cur = choose_bars_with_layout(r_cur['As_req'], b_cm, cover, stirrup_d, bar_table)
+            if chosen_cur is None:
+                raise ValueError("雙層修正後仍排不下, 需要加大梁寬")
+            if chosen_cur['layout']['n_layers'] == 1:
+                d_new = h_cm - cover - stirrup_d - chosen_cur['bar_d']/2
+            else:
+                d_new = effective_depth_multilayer(chosen_cur['layout'], chosen_cur['bar_d'], h_cm, cover, stirrup_d)
+            history.append((d_new, r_cur, chosen_cur))
+            if abs(d_new - d_cur) < 0.01:
+                d_cur, r, chosen = d_new, r_cur, chosen_cur
+                break
+            d_cur = d_new
+        else:
+            # 沒有收斂: 從history挑d最小(最保守)的那一輪
+            d_cur, r, chosen = min(history, key=lambda t: t[0])
+        d, n_passes = d_cur, 2
 
     a_p = chosen['As_provided']*fy/(0.85*fc*b_cm)
     c_p = a_p/beta1
@@ -189,6 +212,15 @@ def design_rebar(Mu_kNm, b_cm, h_cm, fc=280.0, fy=4200.0, cover=4.0,
     phi_actual = phi_from_eps_t(eps_t_actual, eps_ty=fy/Es)
     Mn_p_kgfcm = chosen['As_provided']*fy*(d-a_p/2)
     phiMn_p = phi_actual*Mn_p_kgfcm*9.80665e-5
+    if phiMn_p < Mu_kNm:
+        # 最後一道保底檢查: d/選筋雖然已經收斂(上面的疊代不再變動),
+        # 但收斂到的鋼筋規格在真正的最終d之下, 供給強度還是不夠
+        # ——這是曾經真實發生過的邊界案例(供給98.6%左右, 不是離譜的
+        # 錯誤, 但確實不夠), 不能默默放行, 誠實報錯讓使用者知道要
+        # 調整斷面, 不是隱藏起來讓人以為設計合格
+        raise ValueError(
+            f"收斂後供給強度phiMn={phiMn_p:.2f}仍小於需求Mu={Mu_kNm}, "
+            "排筋+有效深度疊代已收斂但供給仍不足, 需要加大斷面或改用雙筋設計")
     Mn_p_kNm = Mn_p_kgfcm*9.80665e-5
 
     return dict(
@@ -324,12 +356,34 @@ def design_doubly_reinforced(Mu_kNm, b_cm, h_cm, d_prime_cm, fc=280.0, fy=4200.0
     if chosen1['layout']['n_layers'] == 1:
         d, r, chosen, n_passes = d_pass1, r1, chosen1, 1
     else:
-        d_pass2 = effective_depth_multilayer(chosen1['layout'], chosen1['bar_d'], h_cm, cover, stirrup_d)
-        r2 = solve_at_d(d_pass2)
-        chosen2 = choose_bars_with_layout(r2['As_total'], b_cm, cover, stirrup_d, bar_table)
-        if chosen2 is None:
-            raise ValueError("雙層修正後仍排不下, 需要加大梁寬")
-        d, r, chosen, n_passes = d_pass2, r2, chosen2, 2
+        # 疊代最多6輪, 每輪用"上一輪真正選到的鋼筋規格"重算有效深度
+        # (不是延用第一輪的筋徑)——同一個bug跟design_rebar()一致。
+        # 不處理"疊代中need_doubly變False"這種情況: d在這個迴圈裡只會
+        # 變小(多層修正的方向), As需求只會增加, need_doubly邏輯上不會
+        # 中途從True變False。
+        #
+        # 也真實抓到過選筋在多個尺寸之間循環、不會收斂的案例——這時候
+        # 不報錯放棄, 改成從疊代過程挑d最小(最保守)的那一輪自洽結果
+        d_cur = effective_depth_multilayer(chosen1['layout'], chosen1['bar_d'], h_cm, cover, stirrup_d)
+        history = []
+        for _extra_pass in range(6):
+            r_cur = solve_at_d(d_cur)
+            chosen_cur = choose_bars_with_layout(r_cur['As_total'], b_cm, cover, stirrup_d, bar_table)
+            if chosen_cur is None:
+                raise ValueError("雙層修正後仍排不下, 需要加大梁寬")
+            if chosen_cur['layout']['n_layers'] == 1:
+                d_new = h_cm - cover - stirrup_d - chosen_cur['bar_d']/2
+            else:
+                d_new = effective_depth_multilayer(chosen_cur['layout'], chosen_cur['bar_d'], h_cm, cover, stirrup_d)
+            history.append((d_new, r_cur, chosen_cur))
+            if abs(d_new - d_cur) < 0.01:
+                d_cur, r, chosen = d_new, r_cur, chosen_cur
+                break
+            d_cur = d_new
+        else:
+            d_cur, r, chosen = min(history, key=lambda t: t[0])
+        d, n_passes = d_cur, 2
+        d, r, chosen, n_passes = d_cur, r_cur, chosen_cur, 2
 
     # 單層時d_t就是d(只有一層, 沒有最外層跟加權形心不同這回事);
     # 雙層以上才需要用真正選到的鋼筋直徑重算最外層深度
@@ -455,14 +509,33 @@ def design_Tbeam(Mu_kNm, bw_cm, beff_cm, hf_cm, h_cm, fc=280.0, fy=4200.0,
     if chosen1['layout']['n_layers'] == 1:
         d, r, chosen, n_passes = d_pass1, r1, chosen1, 1
     else:
-        d_pass2 = effective_depth_multilayer(chosen1['layout'], chosen1['bar_d'], h_cm, cover, stirrup_d)
-        r2 = solve_at_d(d_pass2)
-        if not r2['ok']:
-            return dict(ok=False, mode=None, reason=f"雙層修正後: {r2['reason']}")
-        chosen2 = choose_bars_with_layout(r2['As_total'], bw_cm, cover, stirrup_d, bar_table)
-        if chosen2 is None:
-            return dict(ok=False, mode=None, reason='雙層修正後仍排不下, 需要加大bw')
-        d, r, chosen, n_passes = d_pass2, r2, chosen2, 2
+        # 疊代最多6輪, 每輪用"上一輪真正選到的鋼筋規格"重算有效深度
+        # (不是延用第一輪的筋徑)——這是真實抓到的bug(例如第一輪選#10
+        # 排雙層算出d, 第二輪需求量變大改選#8, 若不重算d, 回傳的d/
+        # eps_t/Mn跟真正選到的鋼筋規格不一致)。也真實抓到過選筋在
+        # 多個尺寸之間循環、不會收斂的案例——這時候不放棄, 改成從
+        # 疊代過程挑d最小(最保守)的那一輪自洽結果
+        d_cur = effective_depth_multilayer(chosen1['layout'], chosen1['bar_d'], h_cm, cover, stirrup_d)
+        history = []
+        for _extra_pass in range(6):
+            r_cur = solve_at_d(d_cur)
+            if not r_cur['ok']:
+                return dict(ok=False, mode=None, reason=f"雙層修正後: {r_cur['reason']}")
+            chosen_cur = choose_bars_with_layout(r_cur['As_total'], bw_cm, cover, stirrup_d, bar_table)
+            if chosen_cur is None:
+                return dict(ok=False, mode=None, reason='雙層修正後仍排不下, 需要加大bw')
+            if chosen_cur['layout']['n_layers'] == 1:
+                d_new = h_cm - cover - stirrup_d - chosen_cur['bar_d']/2
+            else:
+                d_new = effective_depth_multilayer(chosen_cur['layout'], chosen_cur['bar_d'], h_cm, cover, stirrup_d)
+            history.append((d_new, r_cur, chosen_cur))
+            if abs(d_new - d_cur) < 0.01:
+                d_cur, r, chosen = d_new, r_cur, chosen_cur
+                break
+            d_cur = d_new
+        else:
+            d_cur, r, chosen = min(history, key=lambda t: t[0])
+        d, n_passes = d_cur, 2
 
     result = dict(ok=True, mode=r['mode'], As_total=r['As_total'], d=d,
                   bw=bw_cm, beff=beff_cm, hf=hf_cm,
