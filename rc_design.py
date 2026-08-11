@@ -632,6 +632,168 @@ def analyze_section_capacity(As_cm2, d_cm, b_cm=None, h_cm=None, As_prime_cm2=No
 
 
 # ============================================================
+# 柱設計——軸力+彎矩互制(P-M interaction)
+# ============================================================
+
+def _phi_column_from_eps_t(eps_t, spiral=False, eps_ty=0.002):
+    """柱子的phi折減: 跟梁同一套過渡區規則, 差別在壓力控制端的下限
+    (螺箍柱0.75, 橫箍柱0.65, 梁沒有這個分別因為梁不會落在壓力控制區)。
+    eps_t規範慣用"拉伸為正", 呼叫端要注意正負號(這裡曾經真實踩過一次
+    符號搞反的坑, 內部用"壓力為正"算完要記得轉號)。"""
+    phi_cc = 0.75 if spiral else 0.65
+    if eps_t >= 0.005:
+        return 0.9
+    if eps_t <= eps_ty:
+        return phi_cc
+    return phi_cc + (eps_t - eps_ty)*((0.9-phi_cc)/(0.005-eps_ty))
+
+
+def _column_PM_point(c, b_cm, h_cm, layers, fc, fy, Es, beta1, eps_cu=0.003):
+    """給定中性軸深度c, 算出對應的(Pn, Mn, eps_t)一點。應變相容法,
+    跟design_doubly_reinforced()/design_Tbeam()內部用的是同一套原理,
+    差別是柱子兩側都可能是"受壓筋"或"受拉筋"(視c而定, 不像梁固定
+    哪一側受拉), 所以每一層鋼筋都要各自判斷。
+
+    layers: [(As_i, y_i), ...], y_i是該層鋼筋到"受壓邊緣"的距離(cm),
+    不是到形心的距離——跟design_doubly_reinforced()的d/d_prime同一套
+    量法。c也是同樣從受壓邊緣算的中性軸深度。
+
+    回傳的Pn: kgf(正=壓力), Mn: kgf-cm, eps_t: 最外層(離受壓邊最遠,
+    通常是最先進入拉力的那層)鋼筋的淨拉應變(拉伸為正, 規範慣用號約定)。
+    """
+    a = min(beta1*c, h_cm)
+    Cc = 0.85*fc*b_cm*a
+    y_bar_c = h_cm/2 - a/2
+    N = Cc
+    M = Cc*y_bar_c
+    eps_y = fy/Es
+    max_y = max(y for _, y in layers)
+    eps_t_extreme = 0.0
+
+    for As_i, y_i in layers:
+        eps_i = eps_cu*(c - y_i)/c if c > 0 else 0
+        eps_i_clamped = max(min(eps_i, eps_y), -eps_y)
+        f_i = Es*eps_i_clamped
+        if y_i <= a:
+            F_i = As_i*(f_i - 0.85*fc)  # 壓力區內, 扣掉被鋼筋取代的混凝土
+        else:
+            F_i = As_i*f_i
+        N += F_i
+        y_i_from_center = h_cm/2 - y_i
+        M += F_i*y_i_from_center
+        if y_i == max_y:
+            eps_t_extreme = -eps_i  # 轉成規範慣用"拉伸為正"
+
+    return N, M, eps_t_extreme
+
+
+def design_column_PM(b_cm, h_cm, As_per_layer_cm2, cover_to_center_cm,
+                       n_layers=3, fc=280.0, fy=4200.0, Es=2.0e6,
+                       beta1=None, spiral=False, n_points=60,
+                       Pu_kN=None, Mu_kNm=None):
+    """矩形柱P-M(軸力-彎矩)互制圖分析。跟design_rebar()等函式不同,
+    這是分析(analysis)不是設計(design)——柱子的配筋通常是先假設一組
+    對稱配置, 畫出完整的phi-包絡線, 再檢查各種軸力+彎矩組合(不同地震
+    方向、不同樓層)是否都落在包絡線內, 不是像梁一樣「給Mu反推鋼筋量」。
+
+    參數
+    ----
+    As_per_layer_cm2: 每一層鋼筋的總面積(cm^2)——對稱配置時每層通常
+        相同, 如果各層不同, 傳list(長度要跟n_layers一致)
+    cover_to_center_cm: 最外層鋼筋中心到斷面邊緣的距離(cm)
+    n_layers: 鋼筋層數(沿斷面高度方向均勻分布, 含最外兩層+中間層)
+    spiral: True=螺箍柱(壓力控制phi下限0.75), False=橫箍柱(0.65)
+    Pu_kN/Mu_kNm: 如果給定, 順便檢查這個載重組合是否落在phi-包絡線內
+
+    回傳dict: curve(完整曲線, 每點含c/Pn/Mn/eps_t/phi/phiPn/phiMn)、
+    Po(純壓點phiPn, 無彎矩時的軸壓容量)、Mo(純彎點phiMn, Pn=0時的
+    彎矩容量)、balanced(平衡點, eps_t恰好=eps_y時)、以及如果有給
+    Pu/Mu, 附上utilization跟within_envelope判定。
+    """
+    if beta1 is None:
+        beta1 = 0.85 if fc <= 280 else max(0.65, 0.85-0.05*(fc-280)/70)
+
+    if isinstance(As_per_layer_cm2, (int, float)):
+        As_list = [As_per_layer_cm2]*n_layers
+    else:
+        As_list = list(As_per_layer_cm2)
+        n_layers = len(As_list)
+
+    if n_layers == 1:
+        y_positions = [h_cm/2]
+    else:
+        y_positions = [cover_to_center_cm + i*(h_cm-2*cover_to_center_cm)/(n_layers-1)
+                       for i in range(n_layers)]
+    layers = list(zip(As_list, y_positions))
+
+    # c從很小(接近純彎)掃到很大(接近純壓), 非線性間距讓平衡點附近取樣密一點
+    # 取樣策略: 前半段(涵蓋eps_t從很大遞減到eps_ty的過渡區)用線性間距
+    # 加密, 後半段(壓力控制區, phi已經固定不再變化)用非線性間距節省
+    # 點數——過渡區的phiMn會隨c增加平滑遞減(這是規範phi線性折減本身
+    # 固有的現象, 不是bug, 但取樣太稀疏畫出來的圖會有鋸齒感, 這裡
+    # 針對過渡區加密)
+    n_dense = n_points//2
+    c_dense = [0.5 + i*(h_cm*0.9)/(n_dense-1) for i in range(n_dense)]
+    n_sparse = n_points - n_dense
+    c_sparse = [h_cm*0.9 + (h_cm*3.1)*((i+1)/n_sparse)**1.5 for i in range(n_sparse)]
+    c_values = c_dense + c_sparse
+
+    curve = []
+    for c in c_values:
+        N, M, eps_t = _column_PM_point(c, b_cm, h_cm, layers, fc, fy, Es, beta1)
+        phi = _phi_column_from_eps_t(eps_t, spiral=spiral)
+        Pn_kN, Mn_kNm = N*9.80665e-3, M*9.80665e-5
+        curve.append(dict(c=c, Pn=Pn_kN, Mn=Mn_kNm, eps_t=eps_t, phi=phi,
+                          phiPn=phi*Pn_kN, phiMn=phi*Mn_kNm))
+
+    # 純壓點(c最大那一個, 已經很接近c->infinity的理論極限)
+    Po_point = curve[-1]
+    # 純彎點: 找Pn最接近0的一點, 線性內插到Pn=0
+    # (c越大, Pn越大: 隨著c從小掃到大, Pn從負(拉力主導)變正(壓力主導),
+    # 要找Pn從負變正、經過0的那個區間——之前這裡方向寫反了, 判斷條件
+    # 一直沒被觸發, 誤用了純壓點附近Mn≈0的值當作"純彎點", 已修正)
+    for i in range(len(curve)-1):
+        if curve[i]['Pn'] <= 0 <= curve[i+1]['Pn']:
+            t = -curve[i]['Pn']/(curve[i+1]['Pn']-curve[i]['Pn'])
+            Mo = curve[i]['Mn'] + t*(curve[i+1]['Mn']-curve[i]['Mn'])
+            phi_at_Mo = curve[i]['phi'] + t*(curve[i+1]['phi']-curve[i]['phi'])
+            break
+    else:
+        Mo, phi_at_Mo = curve[0]['Mn'], curve[0]['phi']
+
+    # 平衡點: eps_t最接近eps_y(=fy/Es)的一點
+    eps_y = fy/Es
+    balanced_point = min(curve, key=lambda p: abs(p['eps_t']-eps_y))
+
+    result = dict(curve=curve, Po_phiPn=Po_point['phiPn'],
+                  Mo_phiMn=phi_at_Mo*Mo, balanced=balanced_point,
+                  b_cm=b_cm, h_cm=h_cm, As_total=sum(As_list),
+                  n_layers=n_layers, spiral=spiral)
+
+    if Pu_kN is not None and Mu_kNm is not None:
+        # 檢查(Pu,Mu)是否落在phi-包絡線內: 從原點往(Pu,Mu)方向找包絡線上
+        # 對應的點, 比較該方向下包絡線能提供的容量
+        if Mu_kNm == 0:
+            capacity_ratio = None
+            within = Pu_kN <= Po_point['phiPn']
+        else:
+            angle_target = Pu_kN/Mu_kNm if Mu_kNm != 0 else float('inf')
+            best = min(curve, key=lambda p: abs(p['phiMn']) < 1e-9 and float('inf') or
+                       abs(p['phiPn']/p['phiMn'] - angle_target) if p['phiMn'] != 0 else float('inf'))
+            # 用簡單的比例法估計: 同一角度方向上, 需求點到原點的距離 vs 包絡線上同角度點到原點的距離
+            demand_r = (Pu_kN**2+Mu_kNm**2)**0.5
+            capacity_r = (best['phiPn']**2+best['phiMn']**2)**0.5
+            capacity_ratio = demand_r/capacity_r if capacity_r > 0 else float('inf')
+            within = capacity_ratio <= 1.0
+        result['Pu_demand'] = Pu_kN
+        result['Mu_demand'] = Mu_kNm
+        result['utilization'] = capacity_ratio
+        result['within_envelope'] = within
+
+    return result
+
+
+# ============================================================
 # 設計摘要——放在notebook最後一格, 緊接在斷面圖之後
 # ============================================================
 
@@ -936,6 +1098,45 @@ def draw_stirrup_elevation(L_cm, h_cm, cover_cm, spacing_cm, bar_size,
     ax.set_aspect('equal')
     ax.axis('off')
     ax.set_title(title, fontsize=10)
+    return ax
+
+
+def draw_PM_interaction(result, title="P-M Interaction Diagram", ax=None):
+    """畫柱子的phi折減P-M互制圖(標稱曲線phiPn/phiMn), 標出純壓點、
+    純彎點、平衡點三個特徵點, 如果result裡有Pu/Mu需求點也一併畫出來,
+    直接看合不合格。"""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7, 7))
+
+    curve = result['curve']
+    Mn_vals = [p['phiMn'] for p in curve] + [-p['phiMn'] for p in curve[::-1]]
+    Pn_vals = [p['phiPn'] for p in curve] + [p['phiPn'] for p in curve[::-1]]
+    ax.plot(Mn_vals, Pn_vals, color='steelblue', lw=2, label='phi-envelope (design capacity)')
+
+    ax.plot(0, result['Po_phiPn'], 'o', color='#333333', ms=6)
+    ax.annotate('Po (pure compression)', (0, result['Po_phiPn']), fontsize=8,
+                textcoords="offset points", xytext=(8, 0))
+    ax.plot(result['Mo_phiMn'], 0, 'o', color='#333333', ms=6)
+    ax.annotate('Mo (pure flexure)', (result['Mo_phiMn'], 0), fontsize=8,
+                textcoords="offset points", xytext=(8, -12))
+    bal = result['balanced']
+    ax.plot(bal['phiMn'], bal['phiPn'], 'o', color='#c00000', ms=6)
+    ax.annotate('balanced point', (bal['phiMn'], bal['phiPn']), fontsize=8, color='#c00000',
+                textcoords="offset points", xytext=(8, 8))
+
+    if 'Pu_demand' in result:
+        color = 'green' if result['within_envelope'] else 'red'
+        ax.plot(result['Mu_demand'], result['Pu_demand'], '*', color=color, ms=16,
+                label=f"demand point ({'OK' if result['within_envelope'] else 'FAIL'})")
+
+    ax.axhline(0, color='gray', lw=0.5)
+    ax.axvline(0, color='gray', lw=0.5)
+    ax.set_xlabel('phiMn (kN-m)')
+    ax.set_ylabel('phiPn (kN)')
+    ax.set_title(title, fontsize=10)
+    ax.legend(fontsize=8, loc='lower right')
+    ax.grid(True, alpha=0.3)
     return ax
 
 
