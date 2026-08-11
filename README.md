@@ -59,6 +59,8 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_2_doubly_reinforced_Tbeam.ipynb)
 * [Case-08.3:梁剪力設計](notebooks/case08_3_shear_design.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_3_shear_design.ipynb)
+* [Case-08.4:柱軸力彎矩設計(P-M 互制)](notebooks/case08_4_column_PM_design.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case08_4_column_PM_design.ipynb)
 
 ### 驗證紀錄(Validation Logs)
 
