@@ -765,8 +765,10 @@ def design_column_PM(b_cm, h_cm, As_per_layer_cm2, cover_to_center_cm,
     eps_y = fy/Es
     balanced_point = min(curve, key=lambda p: abs(p['eps_t']-eps_y))
 
-    result = dict(curve=curve, Po_phiPn=Po_point['phiPn'],
-                  Mo_phiMn=phi_at_Mo*Mo, balanced=balanced_point,
+    result = dict(curve=curve, Po_phiPn=Po_point['phiPn'], Po_Pn=Po_point['Pn'],
+                  Po_phi=Po_point['phi'],
+                  Mo_phiMn=phi_at_Mo*Mo, Mo_Mn=Mo, Mo_phi=phi_at_Mo,
+                  balanced=balanced_point,
                   b_cm=b_cm, h_cm=h_cm, As_total=sum(As_list),
                   n_layers=n_layers, spiral=spiral)
 
@@ -776,19 +778,23 @@ def design_column_PM(b_cm, h_cm, As_per_layer_cm2, cover_to_center_cm,
         if Mu_kNm == 0:
             capacity_ratio = None
             within = Pu_kN <= Po_point['phiPn']
+            matched = Po_point
         else:
             angle_target = Pu_kN/Mu_kNm if Mu_kNm != 0 else float('inf')
-            best = min(curve, key=lambda p: abs(p['phiMn']) < 1e-9 and float('inf') or
+            matched = min(curve, key=lambda p: abs(p['phiMn']) < 1e-9 and float('inf') or
                        abs(p['phiPn']/p['phiMn'] - angle_target) if p['phiMn'] != 0 else float('inf'))
             # 用簡單的比例法估計: 同一角度方向上, 需求點到原點的距離 vs 包絡線上同角度點到原點的距離
             demand_r = (Pu_kN**2+Mu_kNm**2)**0.5
-            capacity_r = (best['phiPn']**2+best['phiMn']**2)**0.5
+            capacity_r = (matched['phiPn']**2+matched['phiMn']**2)**0.5
             capacity_ratio = demand_r/capacity_r if capacity_r > 0 else float('inf')
             within = capacity_ratio <= 1.0
         result['Pu_demand'] = Pu_kN
         result['Mu_demand'] = Mu_kNm
         result['utilization'] = capacity_ratio
         result['within_envelope'] = within
+        # 同方向匹配點的完整內容(Pn/Mn/phi/phiPn/phiMn), 讓人可以逐項手算核對,
+        # 不是只給utilization這一個數字
+        result['matched_point'] = dict(matched)
 
     return result
 
@@ -1138,6 +1144,86 @@ def draw_PM_interaction(result, title="P-M Interaction Diagram", ax=None):
     ax.legend(fontsize=8, loc='lower right')
     ax.grid(True, alpha=0.3)
     return ax
+
+
+def draw_PM_nominal(result, title="Nominal P-M Interaction (Pn-Mn, unfactored)", ax=None):
+    """畫柱子的標稱P-M互制曲線(Pn-Mn, 不含phi折減)——跟draw_PM_interaction()
+    (含phi折減的設計曲線)是兩張不同用途的圖: 這張是純粹的斷面力學能耐,
+    那張才是實際用來做合格判定的設計容量。兩張分開看, 不要混在一起,
+    避免讓人誤以為「標稱值」就是「可以直接拿來設計的值」。"""
+    import matplotlib.pyplot as plt
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7, 7))
+
+    curve = result['curve']
+    Mn_vals = [p['Mn'] for p in curve] + [-p['Mn'] for p in curve[::-1]]
+    Pn_vals = [p['Pn'] for p in curve] + [p['Pn'] for p in curve[::-1]]
+    ax.plot(Mn_vals, Pn_vals, color='#888888', lw=2, ls='--',
+             label='nominal curve (Pn-Mn, no phi)')
+
+    ax.plot(0, result['Po_Pn'], 'o', color='#333333', ms=6)
+    ax.annotate('Po (pure compression)', (0, result['Po_Pn']), fontsize=8,
+                textcoords="offset points", xytext=(8, 0))
+    ax.plot(result['Mo_Mn'], 0, 'o', color='#333333', ms=6)
+    ax.annotate('Mo (pure flexure)', (result['Mo_Mn'], 0), fontsize=8,
+                textcoords="offset points", xytext=(8, -12))
+    bal = result['balanced']
+    ax.plot(bal['Mn'], bal['Pn'], 'o', color='#c00000', ms=6)
+    ax.annotate('balanced point', (bal['Mn'], bal['Pn']), fontsize=8, color='#c00000',
+                textcoords="offset points", xytext=(8, 8))
+
+    ax.axhline(0, color='gray', lw=0.5)
+    ax.axvline(0, color='gray', lw=0.5)
+    ax.set_xlabel('Mn (kN-m)')
+    ax.set_ylabel('Pn (kN)')
+    ax.set_title(title, fontsize=10)
+    ax.legend(fontsize=8, loc='lower right')
+    ax.grid(True, alpha=0.3)
+    return ax
+
+
+def print_column_PM_summary(result, geometry, material):
+    """柱P-M設計的標準化輸出——跟print_design_summary()同一套精神,
+    但柱子同時有軸力+彎矩兩條需求線, 分開列出A~D四個區塊, 讓拿到
+    這份輸出的人不用重新執行程式碼, 光看印出來的數字就能逐項手算
+    對照(Pu/Pn/phi/phiPn, Mu/Mn/phi/phiMn, 需求點方向匹配到的Pn/Mn)。
+    """
+    print("="*60)
+    print("柱 P-M 設計摘要")
+    print("="*60)
+
+    print("\n[A. 斷面輸入]")
+    for k, v in geometry.items():
+        print(f"  {k} = {v}")
+    print("\n[材料]")
+    for k, v in material.items():
+        print(f"  {k} = {v}")
+
+    print("\n[B. 純壓點(Pure axial)]")
+    print(f"  Pn,max = {result['Po_Pn']:.1f} kN")
+    print(f"  phi    = {result['Po_phi']:.3f}")
+    print(f"  phiPn,max = {result['Po_phiPn']:.1f} kN")
+
+    print("\n[C. 純彎點(Pure bending)]")
+    print(f"  Mn  = {result['Mo_Mn']:.1f} kN-m")
+    print(f"  phi = {result['Mo_phi']:.3f}")
+    print(f"  phiMn = {result['Mo_phiMn']:.1f} kN-m")
+
+    if 'matched_point' in result:
+        m = result['matched_point']
+        print("\n[D. 設計需求點]")
+        print(f"  Pu = {result['Pu_demand']:.2f} kN")
+        print(f"  Mu = {result['Mu_demand']:.2f} kN-m")
+        print(f"\n  (同方向, 包絡線上對應的斷面狀態)")
+        print(f"  Pn  = {m['Pn']:.2f} kN")
+        print(f"  Mn  = {m['Mn']:.2f} kN-m")
+        print(f"  eps_t = {m['eps_t']:.5f}")
+        print(f"  phi = {m['phi']:.3f}")
+        print(f"  phiPn = {m['phiPn']:.2f} kN")
+        print(f"  phiMn = {m['phiMn']:.2f} kN-m")
+        print(f"\n  utilization = {result['utilization']:.3f}")
+        print(f"  P-M interaction: {'PASS' if result['within_envelope'] else 'FAIL'}")
+    print("="*60)
 
 
 if __name__ == "__main__":
