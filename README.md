@@ -49,6 +49,8 @@
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case06_fiber_pm_interaction.ipynb)
 * [Case-06.5:完整2層樓框架V-Delta側推+真正的FEMA356/ASCE41](notebooks/case06_5_frame_pushover_fema273.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case06_5_frame_pushover_fema273.ipynb)
+* [Case-06.6:梁柱都用真實配筋的完整框架推覆分析](notebooks/case06_6_real_reinforced_frame.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case06_6_real_reinforced_frame.ipynb)
 * [Case-07:反應譜分析+振態分析+ACI有效勁度](notebooks/case07_response_spectrum_atc40.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case07_response_spectrum_atc40.ipynb)
 * [Case-07.5:轉換斷面與纖維積分理論對照(教學版)](notebooks/case07_5_transformed_vs_fiber_theory.ipynb)
