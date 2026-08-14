@@ -74,6 +74,8 @@ Case-08.2 兩者,不適合塞進其中任何一個:
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/VL-08_concreteproperties_crosscheck.ipynb)
 * [VL-12:建立VL-12構件層級跨solver交叉驗證(OpenSeesPy vs PyNite)](notebooks/VL-12_openseespy_pynite_hinge_crosscheck.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/VL-12_openseespy_pynite_hinge_crosscheck.ipynb)
+* [VL-13:無圍束纖維斷面vs Whitney等效矩形應力塊跨方法論驗證](notebooks/VL-13_unconfined_fiber_vs_whitney_block.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/VL-13_unconfined_fiber_vs_whitney_block.ipynb)
 
 完整規劃(Case 序列全貌、FEMA273/ATC-40 定位、與姐妹專案
 [reproducible-structural-benchmarks](https://github.com/zhixiu0223/reproducible-structural-benchmarks)
