@@ -17,6 +17,22 @@
 * [2層樓8柱RC構架耐震設計(桃園案例法規計算)](notebooks/seismic_design_2story_8col.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/seismic_design_2story_8col.ipynb)
 
+### Stage 序列(Taoyuan Design Pipeline)
+
+跟 Case/VL 序列平行的第三個分類,定位是把桃園案例現有的斷面來源混亂
+(40cm/20cm/25cm 三個互不銜接的答案)收斂成單一可追溯主線:規範地震力
+→ 初步試設 → 真梁真柱彈性模型 → Pu/Mu/Vu 抽取 → 分組 → RC 設計 →
+強柱弱梁檢核 → 獨立驗證 → **DESIGN FREEZE** → 塑鉸/纖維參數 → 非線性
+側推 → 性能檢核。完整 Stage 0~9 定義、跟既有 Case 的映射表、歷史斷面
+archaeology 見 [ROADMAP.md](ROADMAP.md#stage-序列taoyuan-design-pipeline跟-casevl-序列平行的第三個分類)。
+
+Stage 0(規範地震力)、Stage 1(初步試設)沿用既有的
+`seismic_design_2story_8col.ipynb`/`case03_5_trial_sizing.ipynb`,
+不需要新檔案。
+
+* [Stage 2:Canonical Elastic Model(第一版)——Y向1跨2柱構架,真梁真柱+規範勁度折減,OpenSeesPy/PyNite雙工具交叉驗證](notebooks/stage2_canonical_elastic_model.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage2_canonical_elastic_model.ipynb)
+
 ### Case 序列
 
 * [Case-01:單自由度 SDOF 驗證](notebooks/case01_sdof.ipynb)
@@ -80,6 +96,8 @@ Case-08.2 兩者,不適合塞進其中任何一個:
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/VL-13_unconfined_fiber_vs_whitney_block.ipynb)
 * [VL-14:梁真實配筋設計, 揭露1F樓板梁嚴重超載的重大警訊](notebooks/VL-14_beam_real_rebar_design.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/VL-14_beam_real_rebar_design.ipynb)
+* VL-15:Stage 2 canonical elastic model 跨solver驗證(OpenSeesPy vs PyNite),11項全數0.0000%誤差一致——見上方 Stage 序列的
+  [`stage2_canonical_elastic_model.ipynb`](notebooks/stage2_canonical_elastic_model.ipynb)(未獨立成檔,記錄併在同一個notebook裡)
 
 完整規劃(Case 序列全貌、FEMA273/ATC-40 定位、與姐妹專案
 [reproducible-structural-benchmarks](https://github.com/zhixiu0223/reproducible-structural-benchmarks)
