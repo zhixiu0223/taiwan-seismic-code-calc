@@ -34,6 +34,8 @@ Stage 0(規範地震力)、Stage 1(初步試設)沿用既有的
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage2_canonical_elastic_model.ipynb)
 * [Stage 3:完整荷載組合+Demand Extraction+構件分組——重新推導D/L(真實從屬寬度+結構計算書真實單位重量),6組合跑完,governing combination可追溯,含Stage 4搶先預覽(配筋+P-M檢核+配筋圖)](notebooks/stage3_load_combinations_demand_extraction.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage3_load_combinations_demand_extraction.ipynb)
+* [Stage 3.01:延伸講義+可重跑計算本(斜率撓度法交叉驗證](notebooks/stage3_01_lecture_vm_pm_slope_deflection.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage3_01_lecture_vm_pm_slope_deflection.ipynb)
 
 ### Case 序列
 
