@@ -32,6 +32,8 @@ Stage 0(規範地震力)、Stage 1(初步試設)沿用既有的
 
 * [Stage 2:Canonical Elastic Model(第一版)——Y向1跨2柱構架,真梁真柱+規範勁度折減,OpenSeesPy/PyNite雙工具交叉驗證](notebooks/stage2_canonical_elastic_model.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage2_canonical_elastic_model.ipynb)
+* [Stage 3:完整荷載組合+Demand Extraction+構件分組——重新推導D/L(真實從屬寬度+結構計算書真實單位重量),6組合跑完,governing combination可追溯,含Stage 4搶先預覽(配筋+P-M檢核+配筋圖)](notebooks/stage3_load_combinations_demand_extraction.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage3_load_combinations_demand_extraction.ipynb)
 
 ### Case 序列
 
@@ -98,6 +100,8 @@ Case-08.2 兩者,不適合塞進其中任何一個:
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/VL-14_beam_real_rebar_design.ipynb)
 * VL-15:Stage 2 canonical elastic model 跨solver驗證(OpenSeesPy vs PyNite),11項全數0.0000%誤差一致——見上方 Stage 序列的
   [`stage2_canonical_elastic_model.ipynb`](notebooks/stage2_canonical_elastic_model.ipynb)(未獨立成檔,記錄併在同一個notebook裡)
+* VL-16:Stage 3 重力載重重新推導(真實從屬寬度+結構計算書真實單位重量) vs Stage 2 反推值,發現24.7%落差並如實記錄;governing combination追溯+柱設計utilization取最差值(非分別取N/M最大值硬湊)——見
+  [`stage3_load_combinations_demand_extraction.ipynb`](notebooks/stage3_load_combinations_demand_extraction.ipynb)(未獨立成檔)
 
 完整規劃(Case 序列全貌、FEMA273/ATC-40 定位、與姐妹專案
 [reproducible-structural-benchmarks](https://github.com/zhixiu0223/reproducible-structural-benchmarks)

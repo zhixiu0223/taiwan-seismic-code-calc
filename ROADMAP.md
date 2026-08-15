@@ -75,6 +75,7 @@ U 形誤差曲線)獨立驗證過同一套規律,不是單一案例的巧合。
 | VL-13 | 無圍束纖維斷面積分 vs Whitney等效矩形應力塊陣營(手算/concreteproperties/design_column_PM())跨方法論比較 | OpenSeesPy全斷面無圍束纖維斷面(不用Case-06.5的核心圍束假設), 在eps_cu=0.003精確取值 vs VL-08/VL-11已建立的無圍束陣營共識 | **完成**: 2F柱(Pu=147.6kN)纖維積分249.76 vs 陣營共識238.10, 差異4.90%; 1F柱(Pu=295.2kN)纖維積分268.55 vs design_column_PM()258.20, 差異4.01%; 差異來源是方法論本身(纖維積分vs等效矩形應力塊), 不是誤差或bug, 比同陣營內部<1%差異更大是預期方向; 明確釐清pyfem-plastic-hinge的RotSpring2DPlastic(Mp=238.10)屬於"單一封頂值陣營"(跟Whitney block陣營同一類), 不該預期跟這次的纖維積分陣營直接吻合 | VL-08/VL-11 |
 | VL-14 | Case-06.5梁的真實彎矩需求, 從沒被正式抓取跟設計過(柱已有VL-08/11/13, 梁完全沒有) | 從Hyb模型完整推覆分析抓出梁端真實彎矩需求 vs Case-06.5原本假設配筋(rho=0.02, 6根單筋)的容量 | **完成, 且發現重大警訊**: 1F樓板梁真實需求428.44kN-m, 遠超原假設配筋容量259.40kN-m, 利用率165%(嚴重超載)——這對Case-06.5"強梁弱柱"假設是需要正視的問題, 不是誤差量級; 屋頂梁需求224.22kN-m, 利用率86.4%尚可; 用design_rebar()/design_doubly_reinforced()正式設計: 1F樓板梁需雙筋(As_total=32.86cm^2, 含壓力筋11.74cm^2, phiMn=435.34), 屋頂梁單筋即可(15.48cm^2, phiMn=225.26); 後續應考慮讓梁也追蹤真實塑性行為, 不能繼續假設永遠彈性; **重要修正**: 428.44是從"梁永遠彈性"模型抓出的第一輪需求, 不是最終設計需求——設計出的phiMn=435.34利用率98.41%極度接近上限, 一旦真的裝回有降伏上限的梁, 側推過程可能提早降伏、勁度下降、側推力轉嫁給柱子, 柱端彎矩也會跟著改變(Analysis->Design->Re-analysis->Redesign的疊代迴圈), 這一課只完成第一輪, 下一步應建Case-06.6(不覆蓋Case-06.5)重新推覆驗證降伏順序是否改變 | Case-06.5 |
 | VL-15 | Stage 2 canonical elastic model: 真梁真柱+規範勁度折減(0.35Ig梁/0.7Ig柱)模型, OpenSeesPy vs PyNite跨solver驗證 | 同一模型(Y向1跨2柱, 40cm柱/30x50cm梁trial section)分別用兩個獨立求解器建置, 比對地震力案例+重力案例共11項(位移/drift/base shear/各構件N,V,M) | **完成(兩工具完全吻合)**: 全部11項相對誤差0.0000%(線彈性模型理論上該完全吻合, 驗證的是兩邊模型輸入/邊界條件/勁度折減是否一致, 不是數值演算法本身); 重力案例的柱軸力(1F=295.2kN, 2F=147.6kN)精確對上Case-03.6/VL-13已建立的Pu, 交叉確認模型正確; **開發過程中的技術細節**: 這個openseespy版本的`ops.eleForce()`回傳全域座標系分量, 不是構件局部座標系[N,V,M], 一開始誤用索引對應到錯誤物理量(柱軸力讀成剪力), 用單元載重測試(對柱單獨施加已知垂直力/水平力反推對應關係)才抓到, 修正後才拿到能跟目標值(147.6/295.2kN)精確對上的結果 | Stage 2(notebooks/stage2_canonical_elastic_model.ipynb) |
+| VL-16 | Stage 3 荷載組合+demand extraction, 重力載重是否有憑有據(取代Stage2的暫用反推值) | 用真實從屬寬度(4.5m, 來自Case-04的X向18m/4榀)+`結構計算書-基本款.md`真實樓板/材料單位重量重新算D_udl/L_udl, 對照Stage2的反推值(49.2kN/m) | **完成, 發現落差但不掩蓋**: 重新算出D+L=37.07kN/m, 比Stage2的49.2kN/m低24.7%; 這個落差沒有回頭修改Stage2(那一課的重點是驗模型/驗solver, 不是驗荷重), 如實記錄在notebook裡; 6組合跑完, 每個構件每個端點的governing combination都留下記錄(不是拿不同工況最大值硬湊); 1F柱組governing demand用逐一(combo,end)算utilization取最差值的方式找出(不是分別取N/M各自最大值), Pu=353.7kN/Mu=50.0kN-m/utilization=25.5%, 落在ρ=0.02試排配筋的phi-P-M包絡線內; 1F梁頂部(157.1kN-m)配4-#6, 底部(94.3kN-m)配2-#7, 底/頂比67.6%滿足抗震慣例>=50% | Stage 3(notebooks/stage3_load_combinations_demand_extraction.ipynb) |
 
 ### VL-04/05 完整記錄:RC 快速彎矩公式誤用梁設計法於柱斷面
 
@@ -255,9 +256,20 @@ Stage 序列跑完後,會產出這幾個數字的「正式版本」,到時候可
 | 7 | 塑鉸/纖維參數產生 | `design_column_PM()`已提供 Mp,`pyfem-plastic-hinge`的`RotSpring2DPlastic`(VL-06 見 Case-06)、OpenSeesPy fiber section(Case-06)已驗證過機制本身 | **[方法已驗證,待用凍結後的正式配筋重跑]** |
 | 8 | 非線性側推(多 solver 互比) | OpenSeesPy/PyNite/suanPan 已三方驗證(VL-03/VL-12),pyfem-plastic-hinge Case-05/06 已驗證 lumped hinge portal frame pushover | **[方法已驗證,待接上 Stage 7 正式參數]** |
 | 9 | 性能檢核(IO/LS/CP) | 無現成模組 | **[規劃中]** |
+| 10 | 小梁設計(次要重力構件,不在抗震主構架內) | 無現成模組;Case-08.1(design_rebar)概念上可重用,但小梁不需要強柱弱梁/塑鉸機制檢核 | **[規劃中,佔位]**——在 DESIGN FREEZE 之後、跟非線性驗證(Stage 7~9)平行進行,不阻塞主線。依`結構計算書-基本款.md`的順序(6大梁→7柱→8小梁),小梁排在主要抗震構架定案之後 |
+| 11 | 樓版設計 | 無現成模組 | **[規劃中,佔位]**——同上,在 DESIGN FREEZE 之後、跟非線性驗證平行。目前 Stage 2/3 把重力載重直接打在大梁上的簡化(略過樓版→小梁→大梁的真實傳力路徑),這裡是補正的位置 |
+| 12 | 基礎設計 | 無現成模組 | **[規劃中,佔位]**——`結構計算書-基本款.md`的真實流程到基礎設計(第10節)才算完整交付,目前 Stage 0~9 都是上部結構,這裡是 Pipeline 真正的終點,排在 Stage 10/11 之後 |
 
 **下一步是 Stage 2**:把 Case-05 模型升級成能吃完整荷載組合、
 輸出每根梁柱可追溯 Pu/Mu/Vu 的版本,而不是重新蓋一個模型。
+
+**Stage 3 現況(第一版已完成,見 VL-16)**:`notebooks/stage3_load_combinations_demand_extraction.ipynb`——
+重新推導 D/L(不再用 Case-03.6 反推值,改用真實從屬寬度4.5m+
+`結構計算書-基本款.md`真實單位重量),套完整6組合荷載組合,每個
+構件每個端點留下 governing combination 記錄,1F/2F柱組完成
+L+R envelope 分組。順便把 Stage 4 的設計函式接上去做預覽(梁頂/底
+配筋+柱P-M檢核+配筋圖),但正式 Stage 4(疊代到經濟配筋量的Design
+Loop)、Stage 5(強柱弱梁+規範檢核)都還沒做。
 
 ---
 
