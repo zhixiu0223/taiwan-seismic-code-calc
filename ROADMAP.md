@@ -179,6 +179,87 @@ vs Case-06.6真實的289.42kN)——降伏序列方向沒變, 但承載力數字
 這是VL-14提出的"Analysis→Design→Re-analysis"疊代閉環的第一次完整
 疊代——結論(柱先降伏, 即強梁弱柱)穩定, 但承載力數字有明確可量化差異。
 
+## Stage 序列(Taoyuan Design Pipeline)——跟 Case/VL 序列平行的第三個分類
+
+### 為什麼要開這個新分類
+
+Case 序列跟 VL 記錄一路走下來,暴露出一個沒有被正式承認過的問題:
+**桃園案例的柱斷面「來源」本身是混亂的**——
+
+| Case | 柱尺寸 | 決策方式 |
+|---|---|---|
+| Case-03.5 | 40cm | 人工試設(實務經驗起步值) |
+| Case-03.7 | 20cm | Design Loop(用舊版有瑕疵的`Mn_strain_compat()`) |
+| Case-04 | 25cm | Design Loop(同上) |
+| 整合回`case03_7`(Phase A) | 20cm | 用`design_column_PM()`修正後重新收斂(見上方表格) |
+| Case-06/06.5/06.6 | 40cm | 直接沿用 Case-03.5,不是任何 Design Loop 算出來的結果 |
+
+外加 VL-14 抓出的「1F 樓板梁真實需求 428.44kN-m」也只是
+「梁永遠彈性」模型的第一輪需求,不是最終設計需求。四個數字
+(40/20/25/428.44)分別來自四套不互相銜接的假設,沒有一條線
+把它們串成「這棟樓最終正式設計是多少」的單一答案。
+
+**Stage 序列的目的**:建立一條單一、可追溯的主線——
+
+```
+規範地震力 → 初步試設 → 真梁真柱彈性模型 → Pu/Mu/Vu(含 governing load combo)
+→ 分組 → RC 設計(梁/柱/剪力)→ 強柱弱梁檢核 → 獨立驗證 → DESIGN FREEZE
+→ 塑鉸/纖維參數 → 非線性側推 → 性能檢核
+```
+
+DESIGN FREEZE 之前是「設計閉環」,之後才是「非線性驗證閉環」。
+兩者現在混在一起(例如 Case-06.5/06.6 用未經正式設計流程產出的
+ρ=2% 假設配筋做 pushover),是造成上面那張表格混亂的根本原因。
+
+### 跟既有 Case/VL 序列的關係
+
+**Case-01~09、VL-01~14 全部保留,不需要因為 Stage 序列而修改或
+「升級」。** 它們是已經獨立驗證過的方法論階梯(剪力構架假設的
+有效範圍、纖維斷面材料模型、配筋函式三方驗證……),Stage 序列
+不會重新推導這些已經驗證過的力學工具,只是**重新决定用哪一組
+輸入去餵這些工具**,得出一個唯一、可追溯的正式設計結果。
+
+Case-06.5 正式標記為 **baseline / historical model**:一個有價值
+的 nonlinear-analysis prototype,用的是尚未走完設計閉環的斷面
+假設,不是「桃園案例的正式設計結果」。Case-06.6 同理,標記為
+在同一組未凍結假設下的延伸驗證。這不是判定兩者失敗,是釐清
+它們回答的問題(「這套非線性建模/求解方法做得對不對」)跟 Stage
+序列要回答的問題(「這棟樓的正式設計是什麼」)是兩件事。
+
+### 歷史斷面 Archaeology(不刪除,只標記)
+
+| 尺寸 | 狀態 | 說明 |
+|---|---|---|
+| 20cm | Historical candidate / Not adopted | Case-03.7 + Phase A 修正後的 Design Loop 收斂值,用的是簡化剪力構架假設 |
+| 25cm | Historical candidate / Not adopted | Case-04 Design Loop 收斂值(修正前邏輯) |
+| 40cm | Legacy manually-selected section | Case-03.5 人工試設起步值,被 Case-06/06.5/06.6 沿用成下游非線性模型的斷面,但從未被任何正式 Design Loop 驗證支持 |
+| 428.44 kN-m(1F梁需求) | Historical / 第一輪需求,非最終設計需求 | VL-14 從「梁永遠彈性」模型抓出,Case-06.6 已用真實配筋做第一次疊代 |
+
+Stage 序列跑完後,會產出這幾個數字的「正式版本」,到時候可以
+直接回答「為什麼以前是 40cm」以及「新流程最後選了多少」,不需要
+把舊資料清掉。
+
+### Stage 定義與現況
+
+| Stage | 內容 | 可重用的既有資源 | 狀態 |
+|---|---|---|---|
+| 0 | 規範地震力 | `seismic_design_2story_8col.ipynb` | **[已完成]**(但該 notebook 是桃園市桃園區教學假設案例,跟本文件庫另外收到的真實 4 層樓結構計算書`結構計算書-基本款.md`是兩棟不同建築物,不要混用比對) |
+| 1 | 初步斷面試設 | Case-03.5(40/45/50cm 柱、25×50/30×50/30×60 梁) | **[已完成,重新定位為 trial section 而非最終值]** |
+| 2 | 真梁真柱彈性 FE 模型 | Case-05(8柱+X/Y向梁+`rigidDiaphragm`,已驗證 N 榀分攤假設誤差<2%,見 VL-02) | **[待做]**——Case-05 目前只跑過驗證用的單一載重情境,還沒有系統性套完整荷載組合(D/L/Ex/Ey 及其組合) |
+| 3 | Demand extraction(含分組、governing load combo 追溯) | 無現成模組,需新建 | **[待做]**——這是目前主線裡真正的缺口 |
+| 4 | RC 設計(梁/柱/剪力) | Case-08.1~08.4 (`design_rebar()`/`design_doubly_reinforced()`/`design_Tbeam()`/`design_stirrups()`/`design_column_PM()`,VL-08/09/10/11/13 三方驗證過) | **[已完成,待接上 Stage 3 輸出]** |
+| 5 | 強柱弱梁 + 規範檢核 | 無現成模組 | **[待做]** |
+| 6 | 獨立驗證(VL-style 抽驗核算) | 沿用 VL-08/11/13/14 的精神與流程 | **[待做]** |
+| — | **DESIGN FREEZE** | — | 通過 Stage 6 後才凍結,凍結後修改斷面/配筋/材料/鉸參數一律走 Validation Log 記錄流程 |
+| 7 | 塑鉸/纖維參數產生 | `design_column_PM()`已提供 Mp,`pyfem-plastic-hinge`的`RotSpring2DPlastic`(VL-06 見 Case-06)、OpenSeesPy fiber section(Case-06)已驗證過機制本身 | **[方法已驗證,待用凍結後的正式配筋重跑]** |
+| 8 | 非線性側推(多 solver 互比) | OpenSeesPy/PyNite/suanPan 已三方驗證(VL-03/VL-12),pyfem-plastic-hinge Case-05/06 已驗證 lumped hinge portal frame pushover | **[方法已驗證,待接上 Stage 7 正式參數]** |
+| 9 | 性能檢核(IO/LS/CP) | 無現成模組 | **[規劃中]** |
+
+**下一步是 Stage 2**:把 Case-05 模型升級成能吃完整荷載組合、
+輸出每根梁柱可追溯 Pu/Mu/Vu 的版本,而不是重新蓋一個模型。
+
+---
+
 ## Case 序列
 
 ### Case-01:單自由度(SDOF)—— **[已完成]**
