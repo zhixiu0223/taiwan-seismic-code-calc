@@ -249,7 +249,7 @@ Stage 序列跑完後,會產出這幾個數字的「正式版本」,到時候可
 | 1 | 初步斷面試設 | Case-03.5(40/45/50cm 柱、25×50/30×50/30×60 梁) | **[已完成,重新定位為 trial section 而非最終值]** |
 | 2 | 真梁真柱彈性 FE 模型 | Case-05(8柱+X/Y向梁+`rigidDiaphragm`,已驗證 N 榀分攤假設誤差<2%,見 VL-02);Case-04.5(真梁建模方法) | **[已完成第一版,見 VL-15]**——`notebooks/stage2_canonical_elastic_model.ipynb`:Y向1跨2柱構架(先小後大),加入0.35Ig/0.7Ig規範勁度折減,OpenSeesPy/PyNite雙工具交叉驗證(11項全部0.0000%誤差一致)。**仍待做**:PyFEM第三工具(高階API不可用,需底層API手動組裝)、X向3跨4柱/完整8柱3D模型、系統性套完整荷載組合(下一步,見 Stage 3) |
 | 3 | Demand extraction(含分組、governing load combo 追溯) | 無現成模組,需新建 | **[待做]**——這是目前主線裡真正的缺口 |
-| 4 | RC 設計(梁/柱/剪力) | Case-08.1~08.4 (`design_rebar()`/`design_doubly_reinforced()`/`design_Tbeam()`/`design_stirrups()`/`design_column_PM()`,VL-08/09/10/11/13 三方驗證過) | **[已完成,待接上 Stage 3 輸出]** |
+| 4 | RC 設計(梁/柱/剪力) | Case-08.1~08.4 (`design_rebar()`/`design_doubly_reinforced()`/`design_Tbeam()`/`design_stirrups()`/`design_column_PM()`,VL-08/09/10/11/13 三方驗證過) | **[已完成第一版]**——`notebooks/stage4_rc_design_loop.ipynb`:柱用正式`while not ok:` Design Loop(沿用`case03_7`的收斂邏輯,每個候選ρ都檢查全部6組合×兩端,不是只查單一governing點)收斂,1F柱組ρ=0.010、2F柱組ρ=0.015(2F較臨界,跟Stage3已發現的一致);梁補齊屋頂梁設計(Stage3只做過1F梁),`design_rebar()`直接解不需要迴圈。**仍待做**:強柱弱梁檢核、塑鉸機制剪力,見Stage 5 |
 | 5 | 強柱弱梁 + 規範檢核 | 無現成模組 | **[待做]** |
 | 6 | 獨立驗證(VL-style 抽驗核算) | 沿用 VL-08/11/13/14 的精神與流程 | **[待做]** |
 | — | **DESIGN FREEZE** | — | 通過 Stage 6 後才凍結,凍結後修改斷面/配筋/材料/鉸參數一律走 Validation Log 記錄流程 |
