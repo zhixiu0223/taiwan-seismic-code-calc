@@ -65,6 +65,8 @@ Stage 0(規範地震力)、Stage 1(初步試設)沿用既有的
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case04_5_real_frame_validation.ipynb)
 * [Case-04.6:第三方工具交叉驗證(PyNite)](notebooks/case04_6_third_party_verification.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case04_6_third_party_verification.ipynb)
+* [Case-04.7:經典模型測試](notebooks/case04_7_canonical_elastic_openseespy.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case04_7_canonical_elastic_openseespy.ipynb)
 * [Case-05:真正的3D模型,X向Y向真正耦合在同一模型](notebooks/case05_3d_model.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/case05_3d_model.ipynb)
 * [Case-06:RC Fiber Section彎矩-曲率與P-M交互作用圖驗證](notebooks/case06_fiber_pm_interaction.ipynb)
