@@ -40,6 +40,8 @@ Stage 0(規範地震力)、Stage 1(初步試設)沿用既有的
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage4_rc_design_loop.ipynb)
 * [Stage 4.5:RC Design+強柱弱梁, 第一次真正接上Stage 2/3需求](notebooks/stage4_5_rc_design_scwb.ipynb)
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage4_5_rc_design_scwb.ipynb)
+* [Stage 4.5:RC Design+強柱弱梁---視覺化呈現](notebooks/stage4_5_visual_summary.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage4_5_visual_summary.ipynb)
 
 ### Case 序列
 
