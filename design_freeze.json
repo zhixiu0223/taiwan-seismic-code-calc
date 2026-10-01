@@ -1,0 +1,135 @@
+{
+  "status": "FROZEN",
+  "source_repo": "taiwan-seismic-code-calc",
+  "source_pipeline": "Case-04.7(Stage 2/3, 4-tool verified canonical elastic model) -> Stage 4/5 RC design + seismic detailing",
+  "geometry": {
+    "L_bay_m": 6.0,
+    "h1_m": 3.5,
+    "h2_m": 3.5,
+    "col_section_cm": "40x40",
+    "beam_section_cm": "30x50"
+  },
+  "materials": {
+    "fc_kgf_cm2": 280.0,
+    "fy_kgf_cm2": 4200.0,
+    "E_kPa": 24630000.0,
+    "stiffness_reduction": "beam 0.35Ig, column 0.7Ig (ACI 318 declared assumption, not unique true value)"
+  },
+  "demands": {
+    "1F_column": {
+      "Pu_kN": 308.85,
+      "Mu_kNm": 32.13,
+      "Vu_kN": 12.94,
+      "governing_combo": "D+L+E"
+    },
+    "2F_column": {
+      "Pu_kN": 153.19,
+      "Mu_kNm": 11.06,
+      "Vu_kN": 7.95,
+      "governing_combo": "D+L+E"
+    },
+    "1F_beam": {
+      "Mu_neg_kNm": 24.189,
+      "Mu_pos_kNm": 24.168,
+      "Vu_kN": 8.06,
+      "note": "D+L給出的樑端彎矩接近0(重力集中施加在柱頂節點, 非分佈載重), 正負彎矩幾乎完全由側推力決定"
+    },
+    "roof_beam": {
+      "Mu_neg_kNm": 16.784,
+      "Mu_pos_kNm": 16.784,
+      "Vu_kN": 5.59
+    }
+  },
+  "members": {
+    "1F_column": {
+      "section_cm": "40x40",
+      "rho": 0.01,
+      "As_total_cm2": 16.0,
+      "governing_factor": "ACI 318 minimum reinforcement ratio (not strength demand)",
+      "Mn_kNm": 159.97,
+      "utilization": 0.2097,
+      "confinement": {
+        "lo_cm": 50.0,
+        "tie_spacing_cm": 3.96,
+        "governing_factor": "Ash/s (transverse reinforcement ratio), not shear demand"
+      }
+    },
+    "2F_column": {
+      "section_cm": "40x40",
+      "rho": 0.01,
+      "As_total_cm2": 16.0,
+      "governing_factor": "ACI 318 minimum reinforcement ratio",
+      "Mn_kNm": 136.83,
+      "utilization": 0.0818,
+      "confinement": {
+        "lo_cm": 50.0,
+        "tie_spacing_cm": 3.96,
+        "governing_factor": "Ash/s (transverse reinforcement ratio)"
+      }
+    },
+    "1F_beam": {
+      "section_cm": "30x50",
+      "top_As_cm2": 5.73,
+      "top_bar": "#6(D19)x2",
+      "bottom_As_cm2": 5.73,
+      "bottom_bar": "#6(D19)x2",
+      "governing_factor": "ACI 318 minimum reinforcement ratio",
+      "Mpr_kNm": 123.0,
+      "capacity_design_shear_kN": 43.93,
+      "stirrup_spacing_hinge_zone_cm": 10.95,
+      "stirrup_governing_factor": "seismic hinge-zone spacing limit (Vc=0 condition met), not shear strength"
+    },
+    "roof_beam": {
+      "section_cm": "30x50",
+      "top_As_cm2": 5.73,
+      "top_bar": "#6(D19)x2",
+      "bottom_As_cm2": 5.73,
+      "bottom_bar": "#6(D19)x2",
+      "governing_factor": "ACI 318 minimum reinforcement ratio",
+      "Mpr_kNm": 123.0,
+      "capacity_design_shear_kN": 43.93,
+      "stirrup_spacing_hinge_zone_cm": 10.95
+    }
+  },
+  "scwb": {
+    "1F_joint": {
+      "sum_Mnc_kNm": 296.8,
+      "ratio": 2.99,
+      "status": "PASS",
+      "code_ref": "ACI 318-19 18.7.3.1"
+    },
+    "roof_joint": {
+      "status": "EXEMPT",
+      "reason": "column discontinuous above connection AND Pu < Ag*fc'/10",
+      "code_ref": "ACI 318-19 18.7.3.1 exception (new in 318-19, verified via web search)"
+    }
+  },
+  "joint_shear": {
+    "1F_joint": {
+      "Vj_kN": 259.87,
+      "phiVn_kN": 591.71,
+      "ratio": 2.28,
+      "status": "PASS",
+      "code_ref": "ACI 318-19 18.8.4"
+    },
+    "roof_joint": {
+      "Vj_kN": 259.87,
+      "phiVn_kN": 591.71,
+      "ratio": 2.28,
+      "status": "PASS",
+      "code_ref": "ACI 318-19 18.8.4"
+    }
+  },
+  "assumptions": [
+    "Stage 2/3 canonical elastic model: 單榀2D substructure, F1/F2側向力直接施加於樓層節點, 樓板內力分配(多榀構架之間)不在這個模型求解範圍內",
+    "D+L重力載重集中施加在柱頂節點, 非梁上分佈載重, 導致1F樑/屋頂樑D+L情況下彎矩接近0",
+    "有效勁度折減(0.35Ig/0.7Ig)是這個分析目的下宣告的建模假設, 不是唯一或絕對正確的RC真實勁度",
+    "柱斷面(40x40cm)、梁斷面(30x50cm)是Case-03.5工程師手動選定的初步試設尺寸, 不是本次Stage 4的尺寸最佳化結果",
+    "未涵蓋範圍(不在這次凍結內): 錨定/搭接長度、柱主筋沿全長排筋細節、接頭橫向鋼筋排列細節"
+  ],
+  "code_references": [
+    "ACI 318-19 Chapter 18 (Special moment frames)",
+    "ACI 318-19 22.4 (PM interaction)",
+    "ACI 318-19 9.6.1.2/10.6.1.1 (minimum reinforcement)"
+  ]
+}
