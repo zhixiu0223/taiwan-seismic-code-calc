@@ -1,9 +1,14 @@
 {
   "status": "FROZEN",
-  "version": 2,
-  "supersedes": "design_freeze.json (v1, deprecated: used concentrated gravity load at column-top nodes, not realistic distributed load on beam)",
+  "version": 3,
+  "supersedes": "v1, v2 (both DEPRECATED: independently reconstructed demand without knowledge of official Stage 2/3/4 pipeline, 1F column axial load off by ~80% vs official value)",
   "source_repo": "taiwan-seismic-code-calc",
-  "change_log": "v2改用梁上真實分佈載重(w=49.2kN/m, 換算自原本集中力, 總重力量級不變只改變傳遞路徑), 取代v1的簡化模型——由一張網路RC構架裂縫示意圖揭露v1無法重現梁跨中正彎矩/梁端負彎矩的典型撓曲行為而觸發這次重建",
+  "source_notebooks": [
+    "stage3_load_combinations_demand_extraction.ipynb (VL-16)",
+    "stage4_rc_design_loop.ipynb",
+    "stage5_seismic_checks.ipynb"
+  ],
+  "change_log": "v3重新執行官方stage3/stage4的真實結果(真實從屬寬度4.5m算出的D_udl=23.83/L_udl=13.24kN/m, 正式Design Loop每候選檢查全部6組合x兩端), 取代v1/v2用反推估計載重獨立重建的版本",
   "geometry": {
     "L_bay_m": 6.0,
     "h1_m": 3.5,
@@ -14,37 +19,40 @@
   "materials": {
     "fc_kgf_cm2": 280.0,
     "fy_kgf_cm2": 4200.0,
-    "E_kPa": 24630000.0,
     "stiffness_reduction": "beam 0.35Ig, column 0.7Ig"
   },
   "demands": {
     "1F_column": {
-      "Pu_kN": 308.85,
-      "Mu_kNm": 57.17
+      "Pu_kN": 171.52,
+      "Mu_kNm": 54.71,
+      "governing_combo": "C5"
     },
     "2F_column": {
-      "Pu_kN": 153.19,
-      "Mu_kNm": 141.95
+      "Pu_kN": 167.61,
+      "Mu_kNm": 142.13,
+      "governing_combo": "C1"
     },
     "1F_beam": {
-      "Mu_neg_kNm": 162.52,
-      "Mu_pos_kNm": 83.07,
-      "w_udl_kN_m": 49.2,
-      "note": "正彎矩(跨中)/負彎矩(端點)首次分開求解, v1沒有這項資訊"
+      "Mu_neg_kNm": 157.09,
+      "Mu_pos_kNm": 94.32,
+      "Vu_kN": 167.61
     },
     "roof_beam": {
-      "Mu_neg_kNm": 141.95,
-      "Mu_pos_kNm": 96.24
+      "Mu_neg_kNm": 142.13,
+      "Mu_pos_kNm": 109.28,
+      "Vu_kN": 167.61
+    },
+    "gravity_load": {
+      "D_udl_kN_m": 23.83,
+      "L_udl_kN_m": 13.239,
+      "note": "from real tributary width 4.5m + 結構計算書-基本款.md real unit weights, NOT v1/v2's back-calculated estimate"
     }
   },
   "members": {
     "1F_column": {
       "section_cm": "40x40",
       "rho": 0.01,
-      "As_total_cm2": 16.0,
-      "governing_factor": "ACI 318 minimum reinforcement ratio",
-      "Mn_kNm": 159.97,
-      "utilization": 0.3046,
+      "Mn_kNm": 185.53,
       "confinement": {
         "lo_cm": 50.0,
         "tie_spacing_cm": 3.96
@@ -53,11 +61,9 @@
     },
     "2F_column": {
       "section_cm": "40x40",
-      "rho": 0.012,
-      "As_total_cm2": 19.2,
-      "governing_factor": "STRENGTH DEMAND (not minimum ratio) -- first time this governs in this pipeline",
-      "Mn_kNm": 157.45,
-      "utilization": 0.92,
+      "rho": 0.015,
+      "Mn_kNm": 196.82,
+      "governing_factor": "strength demand (requires higher rho than 1F per official Design Loop)",
       "confinement": {
         "lo_cm": 50.0,
         "tie_spacing_cm": 3.96
@@ -67,35 +73,37 @@
     "1F_beam": {
       "section_cm": "30x50",
       "top_As_cm2": 11.46,
-      "top_bar": "#6(D19)x4",
-      "bottom_As_cm2": 5.73,
-      "bottom_bar": "#6(D19)x2",
-      "posneg_ratio": 0.521,
-      "posneg_ratio_note": "CLOSE TO 0.5 LIMIT, not comfortably passing",
+      "top_bar": "4-#6(D19)",
+      "bottom_As_cm2": 7.74,
+      "bottom_bar": "2-#7(D22)",
+      "posneg_ratio": 0.694,
       "Mpr_top_kNm": 233.57,
-      "Mpr_bottom_kNm": 123.0,
-      "capacity_design_shear_kN": 63.67,
-      "stirrup_spacing_hinge_zone_cm": 10.95
+      "Mpr_bottom_kNm": 163.2,
+      "shear_governing_source": "Vu_elastic",
+      "shear_design_kN": 167.61,
+      "stirrup_spacing_hinge_zone_cm": 10.95,
+      "note": "Ve_hinge < Vu_elastic in this case (real gravity load is substantial) -- elastic demand governs shear design, not capacity-design shear. Both must be checked, max() taken."
     },
     "roof_beam": {
       "section_cm": "30x50",
       "top_As_cm2": 9.93,
-      "top_bar": "#5(D16)x5",
+      "top_bar": "5-#5(D16)",
       "bottom_As_cm2": 7.74,
-      "bottom_bar": "#7(D22)x2",
+      "bottom_bar": "2-#7(D22)",
       "posneg_ratio": 0.792,
       "Mpr_top_kNm": 205.26,
-      "Mpr_bottom_kNm": 163.24,
-      "capacity_design_shear_kN": 65.8,
+      "Mpr_bottom_kNm": 163.2,
+      "shear_governing_source": "Vu_elastic",
+      "shear_design_kN": 167.61,
       "stirrup_spacing_hinge_zone_cm": 10.95
     }
   },
   "scwb": {
     "1F_joint": {
-      "sum_Mnc_kNm": 317.42,
-      "ratio": 1.66,
+      "sum_Mnc_kNm": 382.35,
+      "ratio": 2.0,
       "status": "PASS",
-      "note": "ratio dropped from 2.99(v1) to this value because beam reinforcement increased substantially"
+      "code_ref": "ACI 318-19 18.7.3.1"
     },
     "roof_joint": {
       "status": "EXEMPT",
@@ -107,29 +115,26 @@
     "1F_joint": {
       "Vj_kN": 523.28,
       "phiVn_kN": 591.71,
-      "ratio": 1.13,
-      "status": "PASS",
-      "note": "margin dropped from 2.28(v1) to this value, tightest check in this design"
+      "ratio": 1.13
     },
     "roof_joint": {
       "Vj_kN": 452.6,
       "phiVn_kN": 591.71,
-      "ratio": 1.31,
-      "status": "PASS"
+      "ratio": 1.31
     }
   },
   "assumptions": [
     "Stage 2/3 canonical elastic model: 單榀2D substructure, 樓板內力分配(多榀構架之間)不在這個模型求解範圍內",
-    "梁上均布重力載重w=49.2kN/m, 換算自原本集中力總量(147.6*2/6.0), 總重力量級不變只改變傳遞路徑",
+    "重力載重: D_udl/L_udl來自真實從屬寬度(4.5m)+結構計算書-基本款.md真實單位重量, 不是反推估計值",
     "有效勁度折減(0.35Ig/0.7Ig)是這個分析目的下宣告的建模假設, 不是唯一或絕對正確的RC真實勁度",
-    "柱斷面(40x40cm)、梁斷面(30x50cm)是Case-03.5工程師手動選定的初步試設尺寸, 不是本次Stage 4的尺寸最佳化結果",
-    "未涵蓋範圍(不在這次凍結內): 錨定/搭接長度、柱主筋沿全長排筋細節、接頭橫向鋼筋排列細節",
-    "需要特別留意: 1F樑正負彎矩比值(0.521)跟1F接頭剪力餘裕(1.13倍)都明顯貼近規範門檻, 不是輕鬆通過"
+    "柱斷面(40x40cm)、梁斷面(30x50cm)是Case-03.5工程師手動選定的初步試設尺寸",
+    "未涵蓋範圍(不在這次凍結內): 錨定/搭接長度、柱主筋沿全長排筋細節、接頭橫向鋼筋排列細節、X向3跨4柱/完整8柱3D模型",
+    "重要發現: 梁capacity-design shear(Ve_hinge)在這個真實重力載重量級下, 反而小於Stage 4彈性需求剪力(Vu, 來自1.4D+1.7L等組合)——剪力設計必須取max(Vu, Ve_hinge), 不能只看capacity-design shear",
+    "v1/v2已棄用, 原因: 兩者都用反推估計的重力載重(49.2kN/m), 跟官方真實值(D+L=37.07kN/m)相差24.7%, 1F柱軸力相差近80%"
   ],
   "code_references": [
     "ACI 318-19 Chapter 18 (Special moment frames)",
     "ACI 318-19 22.4 (PM interaction)",
-    "ACI 318-19 9.6.1.2/10.6.1.1 (minimum reinforcement)",
-    "ACI 318-19 18.7.3.1 (roof joint exemption)"
+    "ACI 318-19 18.7.3.1 (roof joint exemption, verified via web search)"
   ]
 }
