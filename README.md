@@ -46,6 +46,8 @@ Stage 0(規範地震力)、Stage 1(初步試設)沿用既有的
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage5_seismic_checks.ipynb)
 * ★ [Design Freeze:把Stage 3/4/5全部結果組裝成design_freeze.json](notebooks/design_freeze_v3.ipynb)(產出 [design_freeze.json](design_freeze.json))
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/design_freeze_v3.ipynb)
+* ★ [使用性檢核](notebooks/stage_drift_serviceability_check.ipynb)
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/zhixiu0223/taiwan-seismic-code-calc/blob/main/notebooks/stage_drift_serviceability_check.ipynb)
 
 **延伸講義(非主線,獨立可選)**:
 
